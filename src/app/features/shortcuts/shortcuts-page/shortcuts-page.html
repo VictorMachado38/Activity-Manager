@@ -1,0 +1,68 @@
+<div class="shortcuts-page">
+  <div class="page-header">
+    <button
+      type="button"
+      class="header-toggle"
+      (click)="expanded.set(!expanded())"
+      [attr.aria-expanded]="expanded()"
+    >
+      <mat-icon class="chevron" [class.collapsed]="!expanded()">expand_more</mat-icon>
+      <h2>Atalhos</h2>
+    </button>
+    <button mat-flat-button color="primary" (click)="showForm.set(!showForm())">
+      <mat-icon>{{ showForm() ? 'close' : 'add' }}</mat-icon>
+      {{ showForm() ? 'Cancelar' : 'Novo atalho' }}
+    </button>
+  </div>
+
+  @if (expanded()) {
+    @if (showForm()) {
+      <form [formGroup]="form" (ngSubmit)="submit()" class="shortcut-form">
+        <mat-form-field appearance="outline">
+          <mat-label>Nome</mat-label>
+          <input matInput formControlName="label" required />
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>Link</mat-label>
+          <input matInput formControlName="url" required placeholder="https://..." />
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>Imagem (opcional)</mat-label>
+          <input matInput formControlName="image_url" placeholder="https://.../icone.png" />
+        </mat-form-field>
+        <button type="submit" mat-flat-button color="primary">Adicionar</button>
+      </form>
+    }
+
+    @if (loading()) {
+      <div class="state">
+        <mat-spinner diameter="32" />
+      </div>
+    } @else if (shortcuts().length === 0) {
+      <p class="empty">Nenhum atalho cadastrado ainda.</p>
+    } @else {
+      <div class="shortcut-grid">
+        @for (shortcut of shortcuts(); track shortcut.id) {
+          <div class="shortcut-item">
+            <a [href]="shortcut.url" target="_blank" rel="noopener" class="bubble">
+              @if (shortcut.image_url) {
+                <img [src]="shortcut.image_url" [alt]="shortcut.label" />
+              } @else {
+                <span class="fallback">{{ initial(shortcut.label) }}</span>
+              }
+            </a>
+            <button
+              type="button"
+              class="remove-btn"
+              (click)="remove(shortcut)"
+              aria-label="Excluir atalho"
+            >
+              <mat-icon>close</mat-icon>
+            </button>
+            <span class="label">{{ shortcut.label }}</span>
+          </div>
+        }
+      </div>
+    }
+  }
+</div>

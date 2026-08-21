@@ -1,0 +1,86 @@
+<div class="activities-page">
+  <div class="page-header">
+    <button
+      type="button"
+      class="header-toggle"
+      (click)="expanded.set(!expanded())"
+      [attr.aria-expanded]="expanded()"
+    >
+      <mat-icon class="chevron" [class.collapsed]="!expanded()">expand_more</mat-icon>
+      <h2>Atividades</h2>
+    </button>
+    <button mat-flat-button color="primary" (click)="showForm.set(!showForm())">
+      <mat-icon>{{ showForm() ? 'close' : 'add' }}</mat-icon>
+      {{ showForm() ? 'Cancelar' : 'Nova atividade' }}
+    </button>
+  </div>
+
+  @if (expanded()) {
+    @if (showForm()) {
+      <form [formGroup]="form" (ngSubmit)="submit()" class="activity-form">
+        <mat-form-field appearance="outline">
+          <mat-label>Link do Gira</mat-label>
+          <input
+            matInput
+            formControlName="jira_url"
+            required
+            placeholder="https://.../browse/PROJ-123"
+          />
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>Descrição/Observação</mat-label>
+          <input matInput formControlName="notes" placeholder="opcional" />
+        </mat-form-field>
+        <button type="submit" mat-flat-button color="primary">Adicionar</button>
+      </form>
+    }
+
+    @if (loading()) {
+      <div class="state">
+        <mat-spinner diameter="32" />
+      </div>
+    } @else if (activities().length === 0) {
+      <p class="empty">Nenhuma atividade ainda.</p>
+    } @else {
+      <div class="activity-list">
+        @for (activity of activities(); track activity.id) {
+          <div class="activity-row">
+            <a [href]="activity.jira_url" target="_blank" rel="noopener" class="activity-key">
+              <span>{{ displayLabel(activity) }}</span>
+              <mat-icon inline>open_in_new</mat-icon>
+            </a>
+
+            <div class="row-actions">
+              <div class="status-steps">
+                @for (step of steps; track step.status) {
+                  <button
+                    type="button"
+                    class="step-btn"
+                    [class.active]="activity.status === step.status"
+                    [class.is-live]="step.status === 'no_ar'"
+                    [class.is-testing]="step.status === 'testando'"
+                    [title]="step.label"
+                    [attr.aria-label]="step.label"
+                    [attr.aria-pressed]="activity.status === step.status"
+                    (click)="changeStatus(activity, step.status)"
+                  >
+                    <mat-icon>{{ step.icon }}</mat-icon>
+                  </button>
+                }
+              </div>
+
+              <button
+                type="button"
+                class="remove-btn"
+                (click)="remove(activity)"
+                aria-label="Excluir atividade"
+              >
+                <mat-icon>delete_outline</mat-icon>
+              </button>
+            </div>
+          </div>
+        }
+      </div>
+    }
+  }
+</div>

@@ -1,0 +1,57 @@
+:host {
+  display: block;
+  height: 100%;
+}
+
+.app-shell {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-header {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--mat-sys-outline-variant);
+}
+
+.brand {
+  font-family: var(--worklog-mono);
+  font-weight: 700;
+  font-size: 1rem;
+  letter-spacing: 0.02em;
+}
+
+.tagline {
+  font-size: 0.78rem;
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.app-content {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: 20px;
+  max-width: 960px;
+  width: 100%;
+  margin: 0 auto;
+  box-sizing: border-box;
+
+  > * + * {
+    padding-top: 24px;
+    border-top: 1px solid var(--mat-sys-outline-variant);
+  }
+}
+
+@media (max-width: 480px) {
+  .app-header {
+    padding: 12px 14px;
+  }
+
+  .app-content {
+    padding: 14px;
+  }
+}
