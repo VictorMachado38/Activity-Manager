@@ -21,6 +21,7 @@ interface StatusStep {
 const STATUS_STEPS: StatusStep[] = [
   { status: 'a_fazer', label: 'A fazer', icon: 'assignment' },
   { status: 'na_maquina', label: 'Na máquina', icon: 'computer' },
+  { status: 'finalizado_na_maquina', label: 'Finalizado na máquina', icon: 'check_circle' },
   { status: 'no_repositorio', label: 'No repositório', icon: 'account_tree' },
   { status: 'para_deploy', label: 'Para deploy', icon: 'rocket_launch' },
   { status: 'testando', label: 'Testando', icon: 'science' },

@@ -1,6 +1,7 @@
 export type WorkStatus =
   | 'a_fazer'
   | 'na_maquina'
+  | 'finalizado_na_maquina'
   | 'no_repositorio'
   | 'para_deploy'
   | 'testando'
