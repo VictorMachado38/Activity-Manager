@@ -1,4 +1,5 @@
 import { Component, inject, signal } from '@angular/core';
+import { CdkDragDrop, DragDropModule, moveItemInArray } from '@angular/cdk/drag-drop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
@@ -32,6 +33,7 @@ const STATUS_STEPS: StatusStep[] = [
   selector: 'app-activities-page',
   imports: [
     ReactiveFormsModule,
+    DragDropModule,
     MatButtonModule,
     MatFormFieldModule,
     MatInputModule,
@@ -91,7 +93,19 @@ export class ActivitiesPage {
 
   changeStatus(activity: WorkActivity, status: WorkStatus): void {
     if (activity.status === status) return;
-    this.activityService.update(activity.id, { status }).subscribe(() => this.reload());
+    this.activityService.update(activity.id, { status }).subscribe((updated) => {
+      this.activities.update((list) =>
+        list.map((item) => (item.id === updated.id ? updated : item)),
+      );
+    });
+  }
+
+  drop(event: CdkDragDrop<WorkActivity[]>): void {
+    if (event.previousIndex === event.currentIndex) return;
+    const reordered = [...this.activities()];
+    moveItemInArray(reordered, event.previousIndex, event.currentIndex);
+    this.activities.set(reordered);
+    this.activityService.reorder(reordered.map((item) => item.id)).subscribe();
   }
 
   remove(activity: WorkActivity): void {

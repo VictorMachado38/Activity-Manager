@@ -94,6 +94,17 @@ async function handleApi(req, res, url) {
       return sendJson(res, 201, record);
     }
 
+    if (req.method === 'PUT' && collectionName === 'activities' && id === 'reorder') {
+      const body = await readBody(req);
+      const ids = Array.isArray(body.ids) ? body.ids : [];
+      const byId = new Map(data.activities.map((item) => [item.id, item]));
+      const reordered = ids.map((activityId) => byId.get(activityId)).filter(Boolean);
+      const missing = data.activities.filter((item) => !ids.includes(item.id));
+      data.activities = [...reordered, ...missing];
+      saveData(data);
+      return sendJson(res, 200, data.activities);
+    }
+
     if (req.method === 'PATCH' && id) {
       const index = data[collectionName].findIndex((item) => item.id === id);
       if (index === -1) return sendJson(res, 404, { detail: 'não encontrado' });

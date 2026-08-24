@@ -88,6 +88,41 @@
   background: var(--mat-sys-surface-container);
   border-radius: 12px;
   padding: 8px 10px 8px 14px;
+
+  &.cdk-drag-preview {
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+  }
+
+  &.cdk-drag-placeholder {
+    opacity: 0.3;
+  }
+
+  &.cdk-drag-animating {
+    transition: transform 0.2s ease;
+  }
+}
+
+.activity-list.cdk-drop-list-dragging .activity-row:not(.cdk-drag-placeholder) {
+  transition: transform 0.2s ease;
+}
+
+.drag-handle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--mat-sys-on-surface-variant);
+  cursor: grab;
+  flex-shrink: 0;
+
+  mat-icon {
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+  }
+
+  &:active {
+    cursor: grabbing;
+  }
 }
 
 .activity-key {

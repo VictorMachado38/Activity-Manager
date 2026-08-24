@@ -42,9 +42,13 @@
     } @else if (activities().length === 0) {
       <p class="empty">Nenhuma atividade ainda.</p>
     } @else {
-      <div class="activity-list">
+      <div class="activity-list" cdkDropList (cdkDropListDropped)="drop($event)">
         @for (activity of activities(); track activity.id) {
-          <div class="activity-row">
+          <div class="activity-row" cdkDrag>
+            <span class="drag-handle" cdkDragHandle aria-label="Reordenar atividade">
+              <mat-icon>drag_indicator</mat-icon>
+            </span>
+
             <a [href]="activity.jira_url" target="_blank" rel="noopener" class="activity-key">
               <span>{{ displayLabel(activity) }}</span>
               <mat-icon inline>open_in_new</mat-icon>

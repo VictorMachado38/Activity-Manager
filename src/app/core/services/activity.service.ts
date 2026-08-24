@@ -24,4 +24,8 @@ export class ActivityService {
   delete(id: string): Observable<void> {
     return this.http.delete<void>(`${this.base}/${id}`);
   }
+
+  reorder(ids: string[]): Observable<WorkActivity[]> {
+    return this.http.put<WorkActivity[]>(`${this.base}/reorder`, { ids });
+  }
 }
