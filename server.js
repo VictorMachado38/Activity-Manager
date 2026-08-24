@@ -10,7 +10,7 @@ const PORT = process.env.PORT || 3000;
 const DATA_FILE = path.join(__dirname, 'data.json');
 const STATIC_DIR = path.join(__dirname, 'dist', 'activity-manager', 'browser');
 
-const EMPTY_STATE = { activities: [], shortcuts: [], credentials: [] };
+const EMPTY_STATE = { activities: [], shortcuts: [], credentials: [], messages: [] };
 
 function loadData() {
   if (!fs.existsSync(DATA_FILE)) {
@@ -65,6 +65,11 @@ const COLLECTIONS = {
     defaults: () => ({}),
     onCreate: (record) => record,
     onUpdate: (record) => record,
+  },
+  messages: {
+    defaults: () => ({ html: '', text: '' }),
+    onCreate: (record) => ({ ...record, created_at: new Date().toISOString(), updated_at: new Date().toISOString() }),
+    onUpdate: (record) => ({ ...record, updated_at: new Date().toISOString() }),
   },
 };
 

@@ -1,0 +1,64 @@
+<section class="messages-section">
+  <div class="section-header">
+    <button
+      type="button"
+      class="header-toggle"
+      (click)="expanded.set(!expanded())"
+      [attr.aria-expanded]="expanded()"
+    >
+      <span class="chevron" [class.collapsed]="!expanded()">▾</span>
+      <h2>Mensagens</h2>
+    </button>
+    <button type="button" class="ghost-btn" (click)="showForm.set(!showForm())">
+      {{ showForm() ? '× cancelar' : '+ nova mensagem' }}
+    </button>
+  </div>
+
+  @if (expanded()) {
+    @if (showForm()) {
+      <form (submit)="onSubmit($event, pasteArea)" class="message-form">
+        <input
+          class="mono-input"
+          [formControl]="labelControl"
+          placeholder="nome da mensagem"
+          autocomplete="off"
+        />
+        <div
+          #pasteArea
+          class="paste-area"
+          contenteditable="true"
+          data-placeholder="Cole aqui a mensagem formatada do Jira (Ctrl+V)"
+        ></div>
+        <button type="submit" class="save-btn">salvar</button>
+      </form>
+    }
+
+    @if (loading()) {
+      <p class="empty">Carregando...</p>
+    } @else {
+      <div class="message-list">
+        @for (message of messages(); track message.id) {
+          <div class="message-card">
+            <div class="card-header">
+              <span class="message-label">{{ message.label }}</span>
+              <div class="card-actions">
+                <button type="button" class="copy-btn" (click)="copy(message)">copiar</button>
+                <button
+                  type="button"
+                  class="remove-btn"
+                  (click)="remove(message)"
+                  aria-label="Remover mensagem"
+                >
+                  ×
+                </button>
+              </div>
+            </div>
+            <div class="message-preview" [innerHTML]="trustedHtml(message.html)"></div>
+          </div>
+        } @empty {
+          <p class="empty">Nenhuma mensagem ainda.</p>
+        }
+      </div>
+    }
+  }
+</section>
