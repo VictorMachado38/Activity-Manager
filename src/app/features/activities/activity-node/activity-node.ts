@@ -25,6 +25,7 @@ export interface ActivityTreeHost {
   parentGroupId(id: string): string | null;
   allDropListIds(): string[];
   drop(event: CdkDragDrop<string | null>): void;
+  openChildrenLinks(activity: WorkActivity): void;
   readonly editForm: FormGroup;
   isEditing(activityId: string): boolean;
   startEdit(activity: WorkActivity): void;

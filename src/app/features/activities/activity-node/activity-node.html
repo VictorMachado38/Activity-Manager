@@ -45,6 +45,18 @@
         </button>
       }
 
+      @if (page.hasChildren(activity)) {
+        <button
+          type="button"
+          class="open-children-btn"
+          (click)="page.openChildrenLinks(activity)"
+          aria-label="Abrir filhos em novas guias"
+          title="Abrir filhos em novas guias"
+        >
+          <mat-icon>tab</mat-icon>
+        </button>
+      }
+
       <a [href]="activity.jira_url" target="_blank" rel="noopener" class="activity-key">
         <span>{{ page.displayLabel(activity) }}</span>
         <mat-icon inline>open_in_new</mat-icon>

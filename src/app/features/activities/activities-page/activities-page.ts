@@ -13,6 +13,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSelectModule } from '@angular/material/select';
+import { MatSnackBar } from '@angular/material/snack-bar';
 
 import { ConfirmDialog } from '../../../shared/confirm-dialog/confirm-dialog';
 import { WorkActivity, WorkStatus } from '../../../core/models/activity.model';
@@ -52,6 +53,7 @@ export class ActivitiesPage implements ActivityTreeHost {
   private readonly fb = inject(FormBuilder);
   private readonly activityService = inject(ActivityService);
   private readonly dialog = inject(MatDialog);
+  private readonly snackBar = inject(MatSnackBar);
 
   readonly steps = STATUS_STEPS;
   readonly activities = signal<WorkActivity[]>([]);
@@ -171,6 +173,22 @@ export class ActivitiesPage implements ActivityTreeHost {
 
   hasChildren(activity: WorkActivity): boolean {
     return this.childrenOf(activity.id).length > 0;
+  }
+
+  openChildrenLinks(activity: WorkActivity): void {
+    const children = this.childrenOf(activity.id);
+    let blocked = 0;
+    for (const child of children) {
+      const win = window.open(child.jira_url, '_blank', 'noopener');
+      if (!win) blocked++;
+    }
+    if (blocked > 0) {
+      this.snackBar.open(
+        `${blocked} de ${children.length} guias foram bloqueadas pelo navegador. Permita pop-ups para este site (ícone na barra de endereço) e tente de novo.`,
+        undefined,
+        { duration: 6000 },
+      );
+    }
   }
 
   isParentExpanded(parentId: string): boolean {
