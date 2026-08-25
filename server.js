@@ -143,6 +143,7 @@ const MIME_TYPES = {
   '.ico': 'image/x-icon',
   '.svg': 'image/svg+xml',
   '.png': 'image/png',
+  '.webmanifest': 'application/manifest+json',
 };
 
 function serveStatic(req, res, pathname) {
@@ -159,7 +160,10 @@ function serveStatic(req, res, pathname) {
       return res.end('não encontrado');
     }
     const ext = path.extname(filePath);
-    res.writeHead(200, { 'Content-Type': MIME_TYPES[ext] || 'application/octet-stream' });
+    res.writeHead(200, {
+      'Content-Type': MIME_TYPES[ext] || 'application/octet-stream',
+      'Content-Length': content.length,
+    });
     res.end(content);
   });
 }
