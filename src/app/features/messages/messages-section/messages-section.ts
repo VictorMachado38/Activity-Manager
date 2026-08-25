@@ -1,6 +1,5 @@
 import { Component, inject, signal } from '@angular/core';
 import { FormControl, ReactiveFormsModule, Validators } from '@angular/forms';
-import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { MatSnackBar } from '@angular/material/snack-bar';
 
 import { ConfirmDialog } from '../../../shared/confirm-dialog/confirm-dialog';
@@ -15,7 +14,6 @@ import { MessageSnippetService } from '../../../core/services/message-snippet.se
   styleUrl: './messages-section.scss',
 })
 export class MessagesSection {
-  private readonly sanitizer = inject(DomSanitizer);
   private readonly messageService = inject(MessageSnippetService);
   private readonly snackBar = inject(MatSnackBar);
   private readonly dialog = inject(MatDialog);
@@ -40,10 +38,6 @@ export class MessagesSection {
       this.messages.set(messages);
       this.loading.set(false);
     });
-  }
-
-  trustedHtml(html: string): SafeHtml {
-    return this.sanitizer.bypassSecurityTrustHtml(html);
   }
 
   onSubmit(event: Event, pasteArea: HTMLDivElement): void {

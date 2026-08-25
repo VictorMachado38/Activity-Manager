@@ -1,0 +1,37 @@
+<h2 mat-dialog-title>Configurações</h2>
+<mat-dialog-content>
+  <h3 class="group-title">Tema</h3>
+  <div class="theme-options">
+    @for (option of themeOptions; track option.value) {
+      <button
+        type="button"
+        class="theme-btn"
+        [class.active]="themeService.theme() === option.value"
+        (click)="selectTheme(option.value)"
+      >
+        {{ option.label }}
+      </button>
+    }
+  </div>
+
+  <h3 class="group-title">Seções visíveis</h3>
+  <p class="hint">Arraste para reordenar. Desmarque para ocultar uma seção.</p>
+  <div class="section-list" cdkDropList (cdkDropListDropped)="drop($event)">
+    @for (key of layout.order(); track key) {
+      <div class="section-row" cdkDrag>
+        <span class="drag-handle" cdkDragHandle aria-label="Reordenar seção">
+          <mat-icon>drag_indicator</mat-icon>
+        </span>
+        <mat-checkbox
+          [checked]="layout.isVisible(key)"
+          (change)="toggle(key, $event.checked)"
+        >
+          {{ meta(key).label }}
+        </mat-checkbox>
+      </div>
+    }
+  </div>
+</mat-dialog-content>
+<mat-dialog-actions align="end">
+  <button mat-flat-button color="primary" (click)="close()">Concluído</button>
+</mat-dialog-actions>

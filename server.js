@@ -52,7 +52,7 @@ function readBody(req) {
 
 const COLLECTIONS = {
   activities: {
-    defaults: () => ({ status: 'a_fazer', notes: null }),
+    defaults: () => ({ status: 'a_fazer', notes: null, parent_id: null }),
     onCreate: (record) => ({ ...record, created_at: new Date().toISOString(), updated_at: new Date().toISOString() }),
     onUpdate: (record) => ({ ...record, updated_at: new Date().toISOString() }),
   },

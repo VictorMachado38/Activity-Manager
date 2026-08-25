@@ -1,0 +1,109 @@
+<div class="activity-group">
+  @if (page.isEditing(activity.id)) {
+    <form
+      class="activity-row edit-row"
+      [class.child-row]="depth > 1"
+      [formGroup]="page.editForm"
+      (ngSubmit)="page.saveEdit(activity)"
+    >
+      <input
+        class="mono-input"
+        formControlName="jira_url"
+        placeholder="Link do Gira"
+        autocomplete="off"
+      />
+      <input
+        class="mono-input"
+        formControlName="notes"
+        placeholder="Descrição/Observação (opcional)"
+        autocomplete="off"
+      />
+      <div class="row-actions">
+        <button type="submit" class="save-btn">salvar</button>
+        <button type="button" class="ghost-btn" (click)="page.cancelEdit()">cancelar</button>
+      </div>
+    </form>
+  } @else {
+    <div class="activity-row" [class.child-row]="depth > 1" cdkDrag [cdkDragData]="activity">
+      <span class="drag-handle" cdkDragHandle aria-label="Reordenar atividade">
+        <mat-icon>drag_indicator</mat-icon>
+      </span>
+
+      @if (page.canHaveChildren(activity)) {
+        <button
+          type="button"
+          class="expand-toggle"
+          [class.has-children]="page.hasChildren(activity)"
+          (click)="page.toggleParent(activity.id)"
+          [attr.aria-expanded]="page.isParentExpanded(activity.id)"
+          aria-label="Mostrar/ocultar filhos"
+        >
+          <mat-icon>{{ page.isParentExpanded(activity.id) ? 'expand_less' : 'expand_more' }}</mat-icon>
+          @if (page.hasChildren(activity)) {
+            <span class="child-count">{{ page.childrenOf(activity.id).length }}</span>
+          }
+        </button>
+      }
+
+      <a [href]="activity.jira_url" target="_blank" rel="noopener" class="activity-key">
+        <span>{{ page.displayLabel(activity) }}</span>
+        <mat-icon inline>open_in_new</mat-icon>
+      </a>
+
+      <div class="row-actions">
+        <div class="status-steps">
+          @for (step of page.steps; track step.status) {
+            <button
+              type="button"
+              class="step-btn"
+              [class.active]="activity.status === step.status"
+              [class.is-live]="step.status === 'no_ar'"
+              [class.is-testing]="step.status === 'testando'"
+              [title]="step.label"
+              [attr.aria-label]="step.label"
+              [attr.aria-pressed]="activity.status === step.status"
+              (click)="page.changeStatus(activity, step.status)"
+            >
+              <mat-icon>{{ step.icon }}</mat-icon>
+            </button>
+          }
+        </div>
+
+        <button
+          type="button"
+          class="edit-btn"
+          (click)="page.startEdit(activity)"
+          aria-label="Editar atividade"
+        >
+          <mat-icon>edit</mat-icon>
+        </button>
+
+        <button
+          type="button"
+          class="remove-btn"
+          (click)="page.remove(activity)"
+          aria-label="Excluir atividade"
+        >
+          <mat-icon>delete_outline</mat-icon>
+        </button>
+      </div>
+    </div>
+  }
+
+  @if (page.canHaveChildren(activity) && page.isParentExpanded(activity.id)) {
+    <div
+      class="children-list"
+      cdkDropList
+      [id]="page.childrenListId(activity.id)"
+      [cdkDropListConnectedTo]="page.allDropListIds()"
+      [cdkDropListData]="page.parentGroupId(activity.id)"
+      (cdkDropListDropped)="page.drop($event)"
+    >
+      @for (child of page.childrenOf(activity.id); track child.id) {
+        <app-activity-node [activity]="child" [page]="page" [depth]="depth + 1" />
+      } @empty {
+        <p class="drop-hint">Arraste uma atividade aqui para vincular como filha</p>
+      }
+    </div>
+  }
+</div>

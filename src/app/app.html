@@ -2,12 +2,32 @@
   <header class="app-header">
     <span class="brand">Activity Manager</span>
     <span class="tagline">tudo salvo localmente em data.json</span>
+    <button
+      type="button"
+      class="settings-btn"
+      (click)="openSettings()"
+      aria-label="Configurar seções visíveis"
+    >
+      <mat-icon>settings</mat-icon>
+    </button>
   </header>
 
   <main class="app-content">
-    <app-credentials-section />
-    <app-shortcuts-page />
-    <app-messages-section />
-    <app-activities-page />
+    @for (key of layout.visibleOrder(); track key) {
+      @switch (key) {
+        @case ('credentials') {
+          <app-credentials-section />
+        }
+        @case ('shortcuts') {
+          <app-shortcuts-page />
+        }
+        @case ('messages') {
+          <app-messages-section />
+        }
+        @case ('activities') {
+          <app-activities-page />
+        }
+      }
+    }
   </main>
 </div>

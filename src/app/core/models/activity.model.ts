@@ -13,6 +13,7 @@ export interface WorkActivity {
   jira_url: string;
   status: WorkStatus;
   notes: string | null;
+  parent_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -22,6 +23,7 @@ export interface WorkActivityCreate {
   jira_url: string;
   status?: WorkStatus;
   notes?: string | null;
+  parent_id?: string | null;
 }
 
 export interface WorkActivityUpdate {
@@ -29,4 +31,5 @@ export interface WorkActivityUpdate {
   jira_url?: string;
   status?: WorkStatus;
   notes?: string | null;
+  parent_id?: string | null;
 }

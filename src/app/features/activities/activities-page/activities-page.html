@@ -31,6 +31,17 @@
           <mat-label>Descrição/Observação</mat-label>
           <input matInput formControlName="notes" placeholder="opcional" />
         </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>Atividade pai (opcional)</mat-label>
+          <mat-select formControlName="parent_id">
+            <mat-option value="">Nenhuma</mat-option>
+            @for (parent of selectableParents(); track parent.id) {
+              <mat-option [value]="parent.id">
+                {{ parentIndent(parent) }} {{ displayLabel(parent) }}
+              </mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
         <button type="submit" mat-flat-button color="primary">Adicionar</button>
       </form>
     }
@@ -42,48 +53,19 @@
     } @else if (activities().length === 0) {
       <p class="empty">Nenhuma atividade ainda.</p>
     } @else {
-      <div class="activity-list" cdkDropList (cdkDropListDropped)="drop($event)">
-        @for (activity of activities(); track activity.id) {
-          <div class="activity-row" cdkDrag>
-            <span class="drag-handle" cdkDragHandle aria-label="Reordenar atividade">
-              <mat-icon>drag_indicator</mat-icon>
-            </span>
-
-            <a [href]="activity.jira_url" target="_blank" rel="noopener" class="activity-key">
-              <span>{{ displayLabel(activity) }}</span>
-              <mat-icon inline>open_in_new</mat-icon>
-            </a>
-
-            <div class="row-actions">
-              <div class="status-steps">
-                @for (step of steps; track step.status) {
-                  <button
-                    type="button"
-                    class="step-btn"
-                    [class.active]="activity.status === step.status"
-                    [class.is-live]="step.status === 'no_ar'"
-                    [class.is-testing]="step.status === 'testando'"
-                    [title]="step.label"
-                    [attr.aria-label]="step.label"
-                    [attr.aria-pressed]="activity.status === step.status"
-                    (click)="changeStatus(activity, step.status)"
-                  >
-                    <mat-icon>{{ step.icon }}</mat-icon>
-                  </button>
-                }
-              </div>
-
-              <button
-                type="button"
-                class="remove-btn"
-                (click)="remove(activity)"
-                aria-label="Excluir atividade"
-              >
-                <mat-icon>delete_outline</mat-icon>
-              </button>
-            </div>
-          </div>
-        }
+      <div class="activity-tree" cdkDropListGroup>
+        <div
+          class="activity-list"
+          cdkDropList
+          id="root-drop-list"
+          [cdkDropListConnectedTo]="allDropListIds()"
+          [cdkDropListData]="rootGroupId"
+          (cdkDropListDropped)="drop($event)"
+        >
+          @for (activity of topLevelActivities(); track activity.id) {
+            <app-activity-node [activity]="activity" [page]="this" [depth]="1" />
+          }
+        </div>
       </div>
     }
   }

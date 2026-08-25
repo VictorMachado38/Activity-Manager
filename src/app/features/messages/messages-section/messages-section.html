@@ -53,7 +53,7 @@
                 </button>
               </div>
             </div>
-            <div class="message-preview" [innerHTML]="trustedHtml(message.html)"></div>
+            <div class="message-preview">{{ message.text }}</div>
           </div>
         } @empty {
           <p class="empty">Nenhuma mensagem ainda.</p>

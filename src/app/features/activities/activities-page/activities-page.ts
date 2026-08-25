@@ -1,5 +1,10 @@
-import { Component, inject, signal } from '@angular/core';
-import { CdkDragDrop, DragDropModule, moveItemInArray } from '@angular/cdk/drag-drop';
+import { Component, computed, inject, signal } from '@angular/core';
+import {
+  CdkDragDrop,
+  DragDropModule,
+  moveItemInArray,
+  transferArrayItem,
+} from '@angular/cdk/drag-drop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
@@ -7,17 +12,15 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatSelectModule } from '@angular/material/select';
 
 import { ConfirmDialog } from '../../../shared/confirm-dialog/confirm-dialog';
 import { WorkActivity, WorkStatus } from '../../../core/models/activity.model';
 import { ActivityService } from '../../../core/services/activity.service';
 import { extractJiraKey } from '../../../core/utils/extract-jira-key';
+import { ActivityNode, ActivityTreeHost, StatusStep } from '../activity-node/activity-node';
 
-interface StatusStep {
-  status: WorkStatus;
-  label: string;
-  icon: string;
-}
+const MAX_DEPTH = 3;
 
 const STATUS_STEPS: StatusStep[] = [
   { status: 'a_fazer', label: 'A fazer', icon: 'assignment' },
@@ -37,13 +40,15 @@ const STATUS_STEPS: StatusStep[] = [
     MatButtonModule,
     MatFormFieldModule,
     MatInputModule,
+    MatSelectModule,
     MatIconModule,
     MatProgressSpinnerModule,
+    ActivityNode,
   ],
   templateUrl: './activities-page.html',
   styleUrl: './activities-page.scss',
 })
-export class ActivitiesPage {
+export class ActivitiesPage implements ActivityTreeHost {
   private readonly fb = inject(FormBuilder);
   private readonly activityService = inject(ActivityService);
   private readonly dialog = inject(MatDialog);
@@ -53,8 +58,35 @@ export class ActivitiesPage {
   readonly loading = signal(true);
   readonly expanded = signal(true);
   readonly showForm = signal(false);
+  readonly expandedParents = signal<Set<string>>(new Set());
+
+  readonly topLevelActivities = computed(() => this.activities().filter((a) => !a.parent_id));
+
+  readonly childrenByParent = computed(() => {
+    const map = new Map<string, WorkActivity[]>();
+    for (const activity of this.activities()) {
+      if (!activity.parent_id) continue;
+      const siblings = map.get(activity.parent_id) ?? [];
+      siblings.push(activity);
+      map.set(activity.parent_id, siblings);
+    }
+    return map;
+  });
+
+  readonly selectableParents = computed(() =>
+    this.activities().filter((a) => this.depthOf(a) < MAX_DEPTH),
+  );
+
+  readonly rootGroupId: string | null = null;
+  readonly editingId = signal<string | null>(null);
 
   readonly form = this.fb.group({
+    jira_url: ['', Validators.required],
+    notes: [''],
+    parent_id: [''],
+  });
+
+  readonly editForm = this.fb.group({
     jira_url: ['', Validators.required],
     notes: [''],
   });
@@ -80,7 +112,8 @@ export class ActivitiesPage {
     const url = raw.jira_url!.trim();
     const title = extractJiraKey(url) ?? url;
     const notes = raw.notes?.trim() || null;
-    this.activityService.create({ title, jira_url: url, notes }).subscribe(() => {
+    const parentId = raw.parent_id || null;
+    this.activityService.create({ title, jira_url: url, notes, parent_id: parentId }).subscribe(() => {
       this.form.reset();
       this.showForm.set(false);
       this.reload();
@@ -89,6 +122,71 @@ export class ActivitiesPage {
 
   displayLabel(activity: WorkActivity): string {
     return activity.notes ? `${activity.title} - ${activity.notes}` : activity.title;
+  }
+
+  parentIndent(activity: WorkActivity): string {
+    return '—'.repeat(this.depthOf(activity) - 1);
+  }
+
+  depthOf(activity: WorkActivity): number {
+    const byId = new Map(this.activities().map((a) => [a.id, a]));
+    let depth = 1;
+    let current = activity;
+    while (current.parent_id) {
+      const parent = byId.get(current.parent_id);
+      if (!parent) break;
+      depth++;
+      current = parent;
+    }
+    return depth;
+  }
+
+  canHaveChildren(activity: WorkActivity): boolean {
+    return this.depthOf(activity) < MAX_DEPTH;
+  }
+
+  parentGroupId(id: string): string | null {
+    return id;
+  }
+
+  childrenListId(parentId: string): string {
+    return `children-${parentId}`;
+  }
+
+  allDropListIds(): string[] {
+    const byId = new Map(this.activities().map((a) => [a.id, a]));
+    const parentIds = Array.from(this.expandedParents()).sort((a, b) => {
+      const activityA = byId.get(a);
+      const activityB = byId.get(b);
+      const depthA = activityA ? this.depthOf(activityA) : 0;
+      const depthB = activityB ? this.depthOf(activityB) : 0;
+      return depthB - depthA;
+    });
+    return [...parentIds.map((id) => this.childrenListId(id)), 'root-drop-list'];
+  }
+
+  childrenOf(parentId: string): WorkActivity[] {
+    return this.childrenByParent().get(parentId) ?? [];
+  }
+
+  hasChildren(activity: WorkActivity): boolean {
+    return this.childrenOf(activity.id).length > 0;
+  }
+
+  isParentExpanded(parentId: string): boolean {
+    return this.expandedParents().has(parentId);
+  }
+
+  toggleParent(parentId: string): void {
+    this.expandedParents.update((current) => {
+      const next = new Set(current);
+      if (next.has(parentId)) {
+        next.delete(parentId);
+      } else {
+        next.add(parentId);
+      }
+      return next;
+    });
   }
 
   changeStatus(activity: WorkActivity, status: WorkStatus): void {
@@ -100,12 +198,81 @@ export class ActivitiesPage {
     });
   }
 
-  drop(event: CdkDragDrop<WorkActivity[]>): void {
-    if (event.previousIndex === event.currentIndex) return;
-    const reordered = [...this.activities()];
-    moveItemInArray(reordered, event.previousIndex, event.currentIndex);
-    this.activities.set(reordered);
-    this.activityService.reorder(reordered.map((item) => item.id)).subscribe();
+  drop(event: CdkDragDrop<string | null>): void {
+    const moved = event.item.data as WorkActivity;
+    const fromParent = event.previousContainer.data as string | null;
+    const toParent = event.container.data as string | null;
+
+    const fromList =
+      fromParent === null ? [...this.topLevelActivities()] : [...this.childrenOf(fromParent)];
+    const overrides = new Map<string | null, WorkActivity[]>();
+
+    if (event.previousContainer === event.container) {
+      if (event.previousIndex === event.currentIndex) return;
+      moveItemInArray(fromList, event.previousIndex, event.currentIndex);
+      overrides.set(fromParent, fromList);
+    } else {
+      const toList =
+        toParent === null ? [...this.topLevelActivities()] : [...this.childrenOf(toParent)];
+      transferArrayItem(fromList, toList, event.previousIndex, event.currentIndex);
+      const movedIndex = toList.findIndex((item) => item.id === moved.id);
+      toList[movedIndex] = { ...toList[movedIndex], parent_id: toParent };
+      overrides.set(fromParent, fromList);
+      overrides.set(toParent, toList);
+      if (toParent) {
+        this.expandedParents.update((current) => new Set(current).add(toParent));
+      }
+      this.activityService.update(moved.id, { parent_id: toParent }).subscribe();
+    }
+
+    const updated = this.flattenWithOverrides(overrides);
+    this.activities.set(updated);
+    this.activityService.reorder(updated.map((item) => item.id)).subscribe();
+  }
+
+  private flattenWithOverrides(overrides: Map<string | null, WorkActivity[]>): WorkActivity[] {
+    const result: WorkActivity[] = [];
+    const emit = (parentId: string | null): void => {
+      const list =
+        overrides.get(parentId) ??
+        (parentId === null ? this.topLevelActivities() : this.childrenOf(parentId));
+      for (const item of list) {
+        result.push(item);
+        emit(item.id);
+      }
+    };
+    emit(null);
+    return result;
+  }
+
+  isEditing(activityId: string): boolean {
+    return this.editingId() === activityId;
+  }
+
+  startEdit(activity: WorkActivity): void {
+    this.editingId.set(activity.id);
+    this.editForm.setValue({ jira_url: activity.jira_url, notes: activity.notes ?? '' });
+  }
+
+  cancelEdit(): void {
+    this.editingId.set(null);
+  }
+
+  saveEdit(activity: WorkActivity): void {
+    if (this.editForm.invalid) {
+      this.editForm.markAllAsTouched();
+      return;
+    }
+    const raw = this.editForm.getRawValue();
+    const url = raw.jira_url!.trim();
+    const title = extractJiraKey(url) ?? url;
+    const notes = raw.notes?.trim() || null;
+    this.activityService.update(activity.id, { title, jira_url: url, notes }).subscribe((updated) => {
+      this.activities.update((list) =>
+        list.map((item) => (item.id === updated.id ? updated : item)),
+      );
+      this.editingId.set(null);
+    });
   }
 
   remove(activity: WorkActivity): void {
