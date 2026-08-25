@@ -1,5 +1,6 @@
 import { Component, inject, signal } from '@angular/core';
 import { FormControl, ReactiveFormsModule, Validators } from '@angular/forms';
+import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { MatSnackBar } from '@angular/material/snack-bar';
 
 import { ConfirmDialog } from '../../../shared/confirm-dialog/confirm-dialog';
@@ -17,13 +18,20 @@ export class MessagesSection {
   private readonly messageService = inject(MessageSnippetService);
   private readonly snackBar = inject(MatSnackBar);
   private readonly dialog = inject(MatDialog);
+  private readonly sanitizer = inject(DomSanitizer);
 
   readonly messages = signal<MessageSnippet[]>([]);
   readonly loading = signal(true);
   readonly expanded = signal(true);
   readonly showForm = signal(false);
+  readonly editingId = signal<string | null>(null);
 
   readonly labelControl = new FormControl('', {
+    nonNullable: true,
+    validators: [Validators.required],
+  });
+
+  readonly editLabelControl = new FormControl('', {
     nonNullable: true,
     validators: [Validators.required],
   });
@@ -60,6 +68,50 @@ export class MessagesSection {
       pasteArea.innerHTML = '';
       this.showForm.set(false);
       this.reload();
+    });
+  }
+
+  tooltipFor(message: MessageSnippet): string {
+    return `${message.label}\n\n${message.text || ''}`;
+  }
+
+  trustedHtml(html: string): SafeHtml {
+    return this.sanitizer.bypassSecurityTrustHtml(html);
+  }
+
+  isEditing(id: string): boolean {
+    return this.editingId() === id;
+  }
+
+  startEdit(message: MessageSnippet): void {
+    this.editingId.set(message.id);
+    this.editLabelControl.setValue(message.label);
+  }
+
+  cancelEdit(): void {
+    this.editingId.set(null);
+  }
+
+  onEditSubmit(event: Event, message: MessageSnippet, pasteArea: HTMLDivElement): void {
+    event.preventDefault();
+    this.saveEdit(message, pasteArea);
+  }
+
+  saveEdit(message: MessageSnippet, pasteArea: HTMLDivElement): void {
+    const label = this.editLabelControl.value.trim();
+    const html = pasteArea.innerHTML.trim();
+    const text = pasteArea.innerText.trim();
+
+    if (!label || !html) {
+      this.editLabelControl.markAsTouched();
+      return;
+    }
+
+    this.messageService.update(message.id, { label, html, text }).subscribe((updated) => {
+      this.messages.update((list) =>
+        list.map((item) => (item.id === updated.id ? updated : item)),
+      );
+      this.editingId.set(null);
     });
   }
 

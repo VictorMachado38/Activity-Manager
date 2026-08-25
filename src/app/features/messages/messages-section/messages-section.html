@@ -38,23 +38,55 @@
     } @else {
       <div class="message-list">
         @for (message of messages(); track message.id) {
-          <div class="message-card">
-            <div class="card-header">
-              <span class="message-label">{{ message.label }}</span>
+          @if (isEditing(message.id)) {
+            <form
+              (submit)="onEditSubmit($event, message, editPasteArea)"
+              class="message-card edit-card"
+            >
+              <input
+                class="mono-input"
+                [formControl]="editLabelControl"
+                placeholder="nome da mensagem"
+                autocomplete="off"
+              />
+              <div
+                #editPasteArea
+                class="paste-area"
+                contenteditable="true"
+                [innerHTML]="trustedHtml(message.html)"
+              ></div>
               <div class="card-actions">
-                <button type="button" class="copy-btn" (click)="copy(message)">copiar</button>
-                <button
-                  type="button"
-                  class="remove-btn"
-                  (click)="remove(message)"
-                  aria-label="Remover mensagem"
-                >
-                  ×
-                </button>
+                <button type="submit" class="save-btn">salvar</button>
+                <button type="button" class="ghost-btn" (click)="cancelEdit()">cancelar</button>
               </div>
+            </form>
+          } @else {
+            <div class="message-card" [title]="tooltipFor(message)">
+              <div class="card-header">
+                <span class="message-label">{{ message.label }}</span>
+                <div class="card-actions">
+                  <button type="button" class="copy-btn" (click)="copy(message)">copiar</button>
+                  <button
+                    type="button"
+                    class="edit-btn"
+                    (click)="startEdit(message)"
+                    aria-label="Editar mensagem"
+                  >
+                    ✎
+                  </button>
+                  <button
+                    type="button"
+                    class="remove-btn"
+                    (click)="remove(message)"
+                    aria-label="Remover mensagem"
+                  >
+                    ×
+                  </button>
+                </div>
+              </div>
+              <div class="message-preview">{{ message.text }}</div>
             </div>
-            <div class="message-preview">{{ message.text }}</div>
-          </div>
+          }
         } @empty {
           <p class="empty">Nenhuma mensagem ainda.</p>
         }
