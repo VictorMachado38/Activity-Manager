@@ -44,6 +44,15 @@
   }
 }
 
+.jira-btn {
+  margin-left: auto;
+  text-decoration: none;
+
+  & + .settings-btn {
+    margin-left: 0;
+  }
+}
+
 .brand {
   font-family: var(--worklog-mono);
   font-weight: 700;

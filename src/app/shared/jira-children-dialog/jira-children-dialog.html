@@ -1,0 +1,36 @@
+<h2 mat-dialog-title>
+  Filhos de <span class="parent-key">{{ data.key }}</span>
+</h2>
+<mat-dialog-content>
+  <p class="parent-summary">{{ data.summary }}</p>
+
+  @if (loading()) {
+    <div class="state">
+      <mat-spinner diameter="32" />
+    </div>
+  } @else if (error()) {
+    <p class="error">{{ error() }}</p>
+  } @else if (issues().length === 0) {
+    <p class="empty">Nenhum filho encontrado.</p>
+  } @else {
+    <div class="issue-list">
+      @for (issue of issues(); track issue.key) {
+        <a [href]="issue.url" target="_blank" rel="noopener" class="issue-row">
+          <span class="issue-key">{{ issue.key }}</span>
+          <span class="issue-summary">{{ issue.summary }}</span>
+          @if (issue.issueType) {
+            <span class="issue-type">{{ issue.issueType }}</span>
+          }
+          @if (issue.status) {
+            <span class="issue-status" [class]="statusClass(issue)">{{ issue.status }}</span>
+          }
+          <mat-icon inline>open_in_new</mat-icon>
+        </a>
+      }
+    </div>
+  }
+</mat-dialog-content>
+<mat-dialog-actions align="end">
+  <button mat-button (click)="load()" [disabled]="loading()">Atualizar</button>
+  <button mat-flat-button color="primary" (click)="close()">Fechar</button>
+</mat-dialog-actions>

@@ -4,6 +4,7 @@ import { MatIconModule } from '@angular/material/icon';
 
 import { ActivitiesPage } from './features/activities/activities-page/activities-page';
 import { CredentialsSection } from './features/credentials/credentials-section/credentials-section';
+import { JiraDialog } from './shared/jira-dialog/jira-dialog';
 import { LayoutSettingsService } from './core/services/layout-settings.service';
 import { LayoutSettingsDialog } from './shared/layout-settings-dialog/layout-settings-dialog';
 import { MessagesSection } from './features/messages/messages-section/messages-section';
@@ -23,5 +24,9 @@ export class App {
 
   openSettings(): void {
     this.dialog.open(LayoutSettingsDialog);
+  }
+
+  openJira(): void {
+    this.dialog.open(JiraDialog, { width: '900px', maxWidth: '95vw' });
   }
 }

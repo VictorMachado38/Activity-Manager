@@ -8,6 +8,7 @@ const crypto = require('crypto');
 
 const PORT = process.env.PORT || 3000;
 const DATA_FILE = path.join(__dirname, 'data.json');
+const JIRA_CONFIG_FILE = path.join(__dirname, 'jira-config.json');
 const STATIC_DIR = path.join(__dirname, 'dist', 'activity-manager', 'browser');
 
 const EMPTY_STATE = { activities: [], shortcuts: [], credentials: [], messages: [] };
@@ -73,8 +74,142 @@ const COLLECTIONS = {
   },
 };
 
+function loadJiraConfig() {
+  if (!fs.existsSync(JIRA_CONFIG_FILE)) return null;
+  try {
+    return JSON.parse(fs.readFileSync(JIRA_CONFIG_FILE, 'utf-8'));
+  } catch {
+    return null;
+  }
+}
+
+const JIRA_MY_ITEMS_JQL = 'type = "Item de Trabalho" AND assignee = currentUser() ORDER BY created DESC';
+const JIRA_ISSUE_KEY_PATTERN = /^[A-Z][A-Z0-9_]*-\d+$/i;
+
+async function runJiraSearch(config, jql) {
+  const auth = Buffer.from(`${config.email}:${config.apiToken}`).toString('base64');
+  const jiraRes = await fetch(`${config.baseUrl}/rest/api/3/search/jql`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Basic ${auth}`,
+      Accept: 'application/json',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      jql,
+      maxResults: 100,
+      fields: ['summary', 'status', 'issuetype', 'created', 'assignee'],
+    }),
+  });
+
+  const payload = await jiraRes.json();
+
+  if (!jiraRes.ok) {
+    const detail =
+      Array.isArray(payload.errorMessages) && payload.errorMessages.length
+        ? payload.errorMessages.join(', ')
+        : 'Erro ao consultar o Jira';
+    const error = new Error(detail);
+    error.status = jiraRes.status;
+    throw error;
+  }
+
+  return (payload.issues || []).map((issue) => ({
+    key: issue.key,
+    url: `${config.baseUrl}/browse/${issue.key}`,
+    summary: issue.fields?.summary ?? '',
+    status: issue.fields?.status?.name ?? null,
+    issueType: issue.fields?.issuetype?.name ?? null,
+    created: issue.fields?.created ?? null,
+  }));
+}
+
+async function handleJiraMyItems(req, res) {
+  const config = loadJiraConfig();
+  if (!config || !config.baseUrl || !config.email || !config.apiToken) {
+    return sendJson(res, 500, { detail: 'Credenciais do Jira não configuradas (jira-config.json).' });
+  }
+
+  try {
+    const issues = await runJiraSearch(config, JIRA_MY_ITEMS_JQL);
+    return sendJson(res, 200, { issues });
+  } catch (err) {
+    return sendJson(res, err.status || 502, { detail: err.message || 'Falha ao conectar com o Jira' });
+  }
+}
+
+function mapLinkedIssue(config, raw) {
+  if (!raw || !raw.key) return null;
+  return {
+    key: raw.key,
+    url: `${config.baseUrl}/browse/${raw.key}`,
+    summary: raw.fields?.summary ?? '',
+    status: raw.fields?.status?.name ?? null,
+    issueType: raw.fields?.issuetype?.name ?? null,
+    created: raw.fields?.created ?? null,
+  };
+}
+
+async function handleJiraChildren(req, res, key) {
+  if (!JIRA_ISSUE_KEY_PATTERN.test(key)) {
+    return sendJson(res, 400, { detail: 'Chave de item inválida' });
+  }
+
+  const config = loadJiraConfig();
+  if (!config || !config.baseUrl || !config.email || !config.apiToken) {
+    return sendJson(res, 500, { detail: 'Credenciais do Jira não configuradas (jira-config.json).' });
+  }
+
+  try {
+    const auth = Buffer.from(`${config.email}:${config.apiToken}`).toString('base64');
+    const issueRes = await fetch(
+      `${config.baseUrl}/rest/api/3/issue/${encodeURIComponent(key)}?fields=summary,status,issuetype,subtasks,issuelinks`,
+      { headers: { Authorization: `Basic ${auth}`, Accept: 'application/json' } },
+    );
+    const issuePayload = await issueRes.json();
+
+    if (!issueRes.ok) {
+      const detail =
+        Array.isArray(issuePayload.errorMessages) && issuePayload.errorMessages.length
+          ? issuePayload.errorMessages.join(', ')
+          : 'Erro ao consultar o Jira';
+      return sendJson(res, issueRes.status, { detail });
+    }
+
+    const byKey = new Map();
+    const addIssue = (raw) => {
+      const mapped = mapLinkedIssue(config, raw);
+      if (mapped && !byKey.has(mapped.key)) byKey.set(mapped.key, mapped);
+    };
+
+    for (const sub of issuePayload.fields?.subtasks || []) addIssue(sub);
+    for (const link of issuePayload.fields?.issuelinks || []) {
+      addIssue(link.outwardIssue);
+      addIssue(link.inwardIssue);
+    }
+
+    const parentIssues = await runJiraSearch(config, `parent = "${key}" ORDER BY updated DESC`);
+    for (const issue of parentIssues) {
+      if (!byKey.has(issue.key)) byKey.set(issue.key, issue);
+    }
+
+    return sendJson(res, 200, { issues: Array.from(byKey.values()) });
+  } catch (err) {
+    return sendJson(res, err.status || 502, { detail: err.message || 'Falha ao conectar com o Jira' });
+  }
+}
+
 async function handleApi(req, res, url) {
   const parts = url.pathname.replace(/^\/api\//, '').split('/').filter(Boolean);
+
+  if (parts[0] === 'jira' && parts[1] === 'my-items' && req.method === 'GET') {
+    return handleJiraMyItems(req, res);
+  }
+
+  if (parts[0] === 'jira' && parts[1] === 'issue' && parts[3] === 'children' && req.method === 'GET') {
+    return handleJiraChildren(req, res, decodeURIComponent(parts[2]));
+  }
+
   const [collectionName, id] = parts;
   const collection = COLLECTIONS[collectionName];
 

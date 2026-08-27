@@ -44,3 +44,6 @@ Thumbs.db
 
 # Dados locais (credenciais, atividades, atalhos) — nunca commitar
 /data.json
+
+# Credenciais do Jira — nunca commitar
+/jira-config.json

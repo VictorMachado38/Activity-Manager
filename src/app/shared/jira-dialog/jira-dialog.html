@@ -1,0 +1,43 @@
+<h2 mat-dialog-title>Minhas atividades no Jira</h2>
+<mat-dialog-content>
+  @if (loading()) {
+    <div class="state">
+      <mat-spinner diameter="32" />
+    </div>
+  } @else if (error()) {
+    <p class="error">{{ error() }}</p>
+  } @else if (issues().length === 0) {
+    <p class="empty">Nenhum item encontrado.</p>
+  } @else {
+    <div class="issue-list">
+      @for (issue of issues(); track issue.key) {
+        <div class="issue-row">
+          <a [href]="issue.url" target="_blank" rel="noopener" class="issue-link">
+            <span class="issue-key">{{ issue.key }}</span>
+            <span class="issue-summary">{{ issue.summary }}</span>
+            @if (issue.issueType) {
+              <span class="issue-type">{{ issue.issueType }}</span>
+            }
+            @if (issue.status) {
+              <span class="issue-status" [class]="statusClass(issue)">{{ issue.status }}</span>
+            }
+            <mat-icon inline>open_in_new</mat-icon>
+          </a>
+          <button
+            type="button"
+            class="children-btn"
+            (click)="openChildren(issue)"
+            aria-label="Ver filhos"
+            title="Ver filhos"
+          >
+            <mat-icon inline>account_tree</mat-icon>
+          </button>
+        </div>
+      }
+    </div>
+  }
+</mat-dialog-content>
+<mat-dialog-actions align="end">
+  <button mat-button (click)="load()" [disabled]="loading()">Atualizar</button>
+  <button mat-flat-button color="primary" (click)="close()">Fechar</button>
+</mat-dialog-actions>
