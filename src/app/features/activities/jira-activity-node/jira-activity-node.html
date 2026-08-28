@@ -30,8 +30,8 @@
     @if (workflow()) {
       <label
         class="perso-progress"
-        [class.is-live]="activity.status === 'no_ar'"
-        [class.is-testing]="activity.status === 'testando'"
+        [class.is-live]="effectiveStatus() === 'no_ar'"
+        [class.is-testing]="effectiveStatus() === 'testando'"
         [title]="(currentStep()?.label ?? '—') + ' · ' + personalProgress() + '%'"
       >
         <span class="progress-head">
@@ -50,7 +50,7 @@
           "
         >
           @for (step of page.steps; track step.status) {
-            <option [value]="step.status" [selected]="step.status === activity.status">
+            <option [value]="step.status" [selected]="step.status === effectiveStatus()">
               {{ step.label }}
             </option>
           }

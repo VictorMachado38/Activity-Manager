@@ -45,9 +45,25 @@ export class JiraActivityNode {
     });
   }
 
-  /** Passo pessoal atual (de `page.steps`) correspondente a `activity.status`. */
+  /** Bug concluído no Jira = está no último passo do fluxo mapeado. */
+  private jiraDone(): boolean {
+    const wf = this.workflow();
+    return !!wf && wf.currentIndex === wf.steps.length - 1;
+  }
+
+  /**
+   * Status pessoal exibido na barra/combo. Se o Bug já está "Concluído" no Jira
+   * e o status pessoal ainda é o inicial ("a_fazer"), mostra como "No ar" (100%).
+   * Assim que o usuário escolhe algo no combo, passa a valer a escolha real.
+   */
+  effectiveStatus(): WorkStatus {
+    if (this.jiraDone() && this.activity.status === 'a_fazer') return 'no_ar';
+    return this.activity.status;
+  }
+
+  /** Passo pessoal atual (de `page.steps`) correspondente ao status efetivo. */
   currentStep(): StatusStep | undefined {
-    return this.page.steps.find((step) => step.status === this.activity.status);
+    return this.page.steps.find((step) => step.status === this.effectiveStatus());
   }
 
   /**
@@ -56,7 +72,7 @@ export class JiraActivityNode {
    */
   personalProgress(): number {
     const steps = this.page.steps;
-    const index = steps.findIndex((step) => step.status === this.activity.status);
+    const index = steps.findIndex((step) => step.status === this.effectiveStatus());
     if (index === -1) return 0;
     return Math.round(((index + 1) / steps.length) * 100);
   }
