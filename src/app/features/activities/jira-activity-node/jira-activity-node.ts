@@ -3,6 +3,7 @@ import { MatIconModule } from '@angular/material/icon';
 
 import { WorkActivity } from '../../../core/models/activity.model';
 import { jiraStatusClass } from '../../../core/utils/jira-status';
+import { JiraWorkflowProgress, jiraWorkflowProgress } from '../../../core/utils/jira-workflow';
 
 export interface JiraActivityTreeHost {
   childrenOf(parentId: string): WorkActivity[];
@@ -25,6 +26,17 @@ export class JiraActivityNode {
 
   statusClass(): string {
     return jiraStatusClass({
+      issueType: this.activity.jira_issue_type,
+      status: this.activity.jira_status,
+    });
+  }
+
+  /**
+   * Fluxo mapeado (hoje só "Bug") com o passo atual. `null` quando o tipo/status
+   * não está mapeado — nesse caso o template mostra o status como texto.
+   */
+  workflow(): JiraWorkflowProgress | null {
+    return jiraWorkflowProgress({
       issueType: this.activity.jira_issue_type,
       status: this.activity.jira_status,
     });

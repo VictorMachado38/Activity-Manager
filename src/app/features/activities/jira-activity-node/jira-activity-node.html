@@ -31,7 +31,27 @@
       <span class="issue-type">{{ activity.jira_issue_type }}</span>
     }
 
-    @if (activity.jira_status) {
+    @if (workflow(); as wf) {
+      <div
+        class="status-steps"
+        role="list"
+        [attr.aria-label]="'Status: ' + activity.jira_status"
+      >
+        @for (step of wf.steps; track step.status; let i = $index) {
+          <span
+            class="step-marker"
+            role="listitem"
+            [class.done]="i < wf.currentIndex"
+            [class.active]="i === wf.currentIndex"
+            [class.is-final]="i === wf.currentIndex && i === wf.steps.length - 1"
+            [title]="step.label"
+            [attr.aria-current]="i === wf.currentIndex ? 'step' : null"
+          >
+            <mat-icon>{{ step.icon }}</mat-icon>
+          </span>
+        }
+      </div>
+    } @else if (activity.jira_status) {
       <span class="issue-status" [class]="statusClass()">{{ activity.jira_status }}</span>
     }
   </div>

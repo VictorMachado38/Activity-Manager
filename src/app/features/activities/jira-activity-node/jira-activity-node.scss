@@ -130,6 +130,53 @@
   }
 }
 
+// Trilha de status para tipos com fluxo mapeado (hoje só "Bug"). Espelha o
+// visual dos passos do app-activity-node, mas somente leitura.
+.status-steps {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.step-marker {
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  border: 1px solid var(--mat-sys-outline-variant);
+  background: transparent;
+  color: var(--mat-sys-on-surface-variant);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+
+  mat-icon {
+    font-size: 15px;
+    width: 15px;
+    height: 15px;
+  }
+
+  &.done {
+    color: var(--mat-sys-on-surface-variant);
+    border-color: var(--mat-sys-outline-variant);
+    background: var(--mat-sys-surface-container-high);
+    opacity: 0.7;
+  }
+
+  &.active {
+    color: #60a5fa;
+    border-color: #60a5fa;
+    background: rgba(96, 165, 250, 0.16);
+    opacity: 1;
+  }
+
+  &.active.is-final {
+    color: #34d399;
+    border-color: #34d399;
+    background: rgba(52, 211, 153, 0.16);
+  }
+}
+
 .children-list {
   display: flex;
   flex-direction: column;
