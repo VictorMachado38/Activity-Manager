@@ -80,11 +80,16 @@
   font-size: 0.85rem;
   color: inherit;
   text-decoration: none;
-  flex: 1 1 auto;
-  min-width: 80px;
+  // Não cresce; encosta no conteúdo até um teto. Acima disso o texto é cortado
+  // com "…" (o título completo fica no tooltip nativo do <span>).
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 28rem;
   overflow: hidden;
 
   span {
+    display: block;
+    min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -97,6 +102,22 @@
     opacity: 0.65;
     flex-shrink: 0;
   }
+}
+
+// Como o link deixou de crescer, um único `margin-left: auto` empurra todo o
+// bloco final ({barra} Bug {trilha/status}) para a direita, como um grupo colado.
+// Vários `auto` dividiriam a folga entre si e desalinhariam as colunas.
+.perso-progress,
+.issue-type {
+  margin-left: auto;
+}
+
+// Quando existe a barra (tipos mapeados), ela é quem empurra; o resto flui logo
+// em seguida, só com o gap normal da linha.
+.perso-progress ~ .issue-type,
+.perso-progress ~ .status-steps,
+.perso-progress ~ .issue-status {
+  margin-left: 0;
 }
 
 .issue-type {
@@ -177,11 +198,11 @@
   }
 }
 
-// Barra de progresso pessoal (lado direito) — reflete `activity.status` sobre
-// os 7 passos pessoais de `page.steps`. Clicar abre um <select> nativo.
+// Barra de progresso pessoal — fica à esquerda do tipo/status ({barra} Bug
+// {status}). Reflete `activity.status` sobre os 7 passos pessoais de
+// `page.steps`; clicar abre um <select> nativo.
 .perso-progress {
   position: relative;
-  margin-left: auto;
   display: flex;
   flex-direction: column;
   gap: 3px;
