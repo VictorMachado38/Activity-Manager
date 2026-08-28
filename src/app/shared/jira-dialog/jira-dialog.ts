@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialog, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
@@ -33,6 +33,21 @@ export class JiraDialog {
   readonly importingKey = signal<string | null>(null);
   readonly importedKeys = signal<Set<string>>(new Set());
 
+  // Filtro de status (client-side). '' = todos. As opções são os status
+  // realmente presentes no resultado atual.
+  readonly statusFilter = signal<string>('');
+
+  readonly availableStatuses = computed(() =>
+    [...new Set(this.issues().map((i) => i.status).filter((s): s is string => !!s))].sort((a, b) =>
+      a.localeCompare(b),
+    ),
+  );
+
+  readonly visibleIssues = computed(() => {
+    const status = this.statusFilter();
+    return status ? this.issues().filter((i) => i.status === status) : this.issues();
+  });
+
   constructor() {
     this.load();
   }
@@ -44,9 +59,14 @@ export class JiraDialog {
     this.load();
   }
 
+  changeStatusFilter(event: Event): void {
+    this.statusFilter.set((event.target as HTMLSelectElement).value);
+  }
+
   load(): void {
     this.loading.set(true);
     this.error.set(null);
+    this.statusFilter.set('');
     this.jiraService.myItems(this.selectedType()).subscribe({
       next: (res) => {
         this.issues.set(res.issues);

@@ -1,12 +1,28 @@
 <h2 mat-dialog-title>Minhas atividades no Jira</h2>
 <mat-dialog-content>
-  <div class="type-filter">
-    <label for="jira-type">Tipo</label>
-    <select id="jira-type" (change)="changeType($event)" [disabled]="loading()">
-      @for (t of issueTypes; track t) {
-        <option [value]="t" [selected]="t === selectedType()">{{ t }}</option>
-      }
-    </select>
+  <div class="filters">
+    <div class="type-filter">
+      <label for="jira-type">Tipo</label>
+      <select id="jira-type" (change)="changeType($event)" [disabled]="loading()">
+        @for (t of issueTypes; track t) {
+          <option [value]="t" [selected]="t === selectedType()">{{ t }}</option>
+        }
+      </select>
+    </div>
+
+    <div class="status-filter">
+      <label for="jira-status-filter">Filtro Status:</label>
+      <select
+        id="jira-status-filter"
+        (change)="changeStatusFilter($event)"
+        [disabled]="loading() || availableStatuses().length === 0"
+      >
+        <option value="" [selected]="statusFilter() === ''">Todos</option>
+        @for (s of availableStatuses(); track s) {
+          <option [value]="s" [selected]="s === statusFilter()">{{ s }}</option>
+        }
+      </select>
+    </div>
   </div>
 
   @if (loading()) {
@@ -15,11 +31,11 @@
     </div>
   } @else if (error()) {
     <p class="error">{{ error() }}</p>
-  } @else if (issues().length === 0) {
+  } @else if (visibleIssues().length === 0) {
     <p class="empty">Nenhum item encontrado.</p>
   } @else {
     <div class="issue-list">
-      @for (issue of issues(); track issue.key) {
+      @for (issue of visibleIssues(); track issue.key) {
         <div class="issue-row">
           <a [href]="issue.url" target="_blank" rel="noopener" class="issue-link">
             <span class="issue-key">{{ issue.key }}</span>
