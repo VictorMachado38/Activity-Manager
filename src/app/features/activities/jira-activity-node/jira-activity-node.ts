@@ -15,6 +15,7 @@ export interface JiraActivityTreeHost {
   isParentExpanded(parentId: string): boolean;
   toggleParent(parentId: string): void;
   changeStatus(activity: WorkActivity, status: WorkStatus): void;
+  remove(activity: WorkActivity): void;
   childrenListId(parentId: string): string;
   parentGroupId(id: string): string | null;
   allDropListIds(): string[];

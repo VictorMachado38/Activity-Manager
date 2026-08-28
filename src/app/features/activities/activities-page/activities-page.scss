@@ -33,6 +33,30 @@
   min-width: 0;
 }
 
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.spinning {
+  animation: header-sync-spin 0.9s linear infinite;
+}
+
+@keyframes header-sync-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinning {
+    animation: none;
+  }
+}
+
 .chevron {
   font-size: 20px;
   width: 20px;

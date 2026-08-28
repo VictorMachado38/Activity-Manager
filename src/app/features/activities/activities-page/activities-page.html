@@ -9,10 +9,20 @@
       <mat-icon class="chevron" [class.collapsed]="!expanded()">expand_more</mat-icon>
       <h2>Atividades</h2>
     </button>
-    <button mat-flat-button color="primary" (click)="showForm.set(!showForm())">
-      <mat-icon>{{ showForm() ? 'close' : 'add' }}</mat-icon>
-      {{ showForm() ? 'Cancelar' : 'Nova atividade' }}
-    </button>
+    <div class="header-actions">
+      <button
+        mat-stroked-button
+        (click)="syncWithJira()"
+        [disabled]="syncing() || loading()"
+      >
+        <mat-icon [class.spinning]="syncing()">sync</mat-icon>
+        {{ syncing() ? 'Sincronizando…' : 'Sinc. Jira' }}
+      </button>
+      <button mat-flat-button color="primary" (click)="showForm.set(!showForm())">
+        <mat-icon>{{ showForm() ? 'close' : 'add' }}</mat-icon>
+        {{ showForm() ? 'Cancelar' : 'Nova atividade' }}
+      </button>
+    </div>
   </div>
 
   @if (expanded()) {

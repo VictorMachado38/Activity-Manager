@@ -220,11 +220,55 @@ async function handleJiraChildren(req, res, key) {
   }
 }
 
+function chunk(arr, size) {
+  const out = [];
+  for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
+  return out;
+}
+
+// Estado atual de várias issues por chave, para a sincronização do front.
+// Body: { keys: string[] } -> { issues: [{ key, status, issueType, summary, url }] }
+async function handleJiraSync(req, res) {
+  const config = loadJiraConfig();
+  if (!config || !config.baseUrl || !config.email || !config.apiToken) {
+    return sendJson(res, 500, { detail: 'Credenciais do Jira não configuradas (jira-config.json).' });
+  }
+
+  let body;
+  try {
+    body = await readBody(req);
+  } catch (err) {
+    return sendJson(res, 400, { detail: err.message });
+  }
+
+  const keys = Array.isArray(body.keys) ? [...new Set(body.keys)] : [];
+  if (keys.length === 0) return sendJson(res, 200, { issues: [] });
+  if (keys.some((k) => typeof k !== 'string' || !JIRA_ISSUE_KEY_PATTERN.test(k))) {
+    return sendJson(res, 400, { detail: 'Lista de chaves inválida' });
+  }
+
+  try {
+    // As chaves entram na JQL, mas já foram validadas contra JIRA_ISSUE_KEY_PATTERN.
+    const results = await Promise.all(
+      chunk(keys, 50).map((group) =>
+        runJiraSearch(config, `key in (${group.join(', ')}) ORDER BY key`),
+      ),
+    );
+    return sendJson(res, 200, { issues: results.flat() });
+  } catch (err) {
+    return sendJson(res, err.status || 502, { detail: err.message || 'Falha ao conectar com o Jira' });
+  }
+}
+
 async function handleApi(req, res, url) {
   const parts = url.pathname.replace(/^\/api\//, '').split('/').filter(Boolean);
 
   if (parts[0] === 'jira' && parts[1] === 'my-items' && req.method === 'GET') {
     return handleJiraMyItems(req, res, url);
+  }
+
+  if (parts[0] === 'jira' && parts[1] === 'sync' && req.method === 'POST') {
+    return handleJiraSync(req, res);
   }
 
   if (parts[0] === 'jira' && parts[1] === 'issue' && parts[3] === 'children' && req.method === 'GET') {
@@ -279,7 +323,24 @@ async function handleApi(req, res, url) {
     if (req.method === 'DELETE' && id) {
       const index = data[collectionName].findIndex((item) => item.id === id);
       if (index === -1) return sendJson(res, 404, { detail: 'não encontrado' });
-      data[collectionName].splice(index, 1);
+
+      if (collectionName === 'activities') {
+        // Exclusão em cascata: remove o item e toda a subárvore (filhos, netos…).
+        const toDelete = new Set([id]);
+        for (let grew = true; grew; ) {
+          grew = false;
+          for (const a of data.activities) {
+            if (a.parent_id && toDelete.has(a.parent_id) && !toDelete.has(a.id)) {
+              toDelete.add(a.id);
+              grew = true;
+            }
+          }
+        }
+        data.activities = data.activities.filter((a) => !toDelete.has(a.id));
+      } else {
+        data[collectionName].splice(index, 1);
+      }
+
       saveData(data);
       res.writeHead(204);
       return res.end();

@@ -16,8 +16,10 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatSnackBar } from '@angular/material/snack-bar';
 
 import { ConfirmDialog } from '../../../shared/confirm-dialog/confirm-dialog';
-import { WorkActivity, WorkStatus } from '../../../core/models/activity.model';
+import { WorkActivity, WorkActivityUpdate, WorkStatus } from '../../../core/models/activity.model';
+import { JiraIssue } from '../../../core/models/jira-issue.model';
 import { ActivityService } from '../../../core/services/activity.service';
+import { JiraService } from '../../../core/services/jira.service';
 import { extractJiraKey } from '../../../core/utils/extract-jira-key';
 import { ActivityNode, ActivityTreeHost, StatusStep } from '../activity-node/activity-node';
 import { JiraActivityNode } from '../jira-activity-node/jira-activity-node';
@@ -54,12 +56,14 @@ const STATUS_STEPS: StatusStep[] = [
 export class ActivitiesPage implements ActivityTreeHost {
   private readonly fb = inject(FormBuilder);
   private readonly activityService = inject(ActivityService);
+  private readonly jiraService = inject(JiraService);
   private readonly dialog = inject(MatDialog);
   private readonly snackBar = inject(MatSnackBar);
 
   readonly steps = STATUS_STEPS;
   readonly activities = signal<WorkActivity[]>([]);
   readonly loading = signal(true);
+  readonly syncing = signal(false);
   readonly expanded = signal(true);
   readonly showForm = signal(false);
   readonly expandedParents = signal<Set<string>>(new Set());
@@ -127,6 +131,89 @@ export class ActivitiesPage implements ActivityTreeHost {
       this.activities.set(activities);
       this.loading.set(false);
     });
+  }
+
+  /** Busca o estado atual no Jira das atividades importadas e atualiza status/tipo. */
+  syncWithJira(): void {
+    if (this.syncing()) return;
+    const keys = [
+      ...new Set(this.activities().filter((a) => a.jira_key).map((a) => a.jira_key as string)),
+    ];
+    if (keys.length === 0) {
+      this.snackBar.open('Nenhuma atividade importada do Jira.', undefined, { duration: 3000 });
+      return;
+    }
+    this.syncing.set(true);
+    this.jiraService.syncIssues(keys).subscribe({
+      next: (res) => this.applyJiraSync(res.issues),
+      error: (err) => {
+        this.syncing.set(false);
+        this.snackBar.open(
+          err?.error?.detail || 'Falha ao sincronizar com o Jira.',
+          undefined,
+          { duration: 5000 },
+        );
+      },
+    });
+  }
+
+  private applyJiraSync(issues: JiraIssue[]): void {
+    const byKey = new Map(issues.map((i) => [i.key, i]));
+    const moves: string[] = [];
+    const patches: { id: string; body: WorkActivityUpdate }[] = [];
+
+    for (const activity of this.activities()) {
+      if (!activity.jira_key) continue;
+      const fresh = byKey.get(activity.jira_key);
+      if (!fresh) continue;
+
+      const body: WorkActivityUpdate = {};
+      if ((fresh.status ?? null) !== activity.jira_status) {
+        body.jira_status = fresh.status ?? null;
+        moves.push(`${activity.jira_key}: ${activity.jira_status ?? '—'} → ${fresh.status ?? '—'}`);
+      }
+      if ((fresh.issueType ?? null) !== activity.jira_issue_type) {
+        body.jira_issue_type = fresh.issueType ?? null;
+      }
+      if (Object.keys(body).length > 0) patches.push({ id: activity.id, body });
+    }
+
+    if (patches.length === 0) {
+      this.syncing.set(false);
+      this.snackBar.open('Tudo já estava sincronizado com o Jira.', undefined, { duration: 3000 });
+      return;
+    }
+
+    let remaining = patches.length;
+    const done = (): void => {
+      if (--remaining === 0) this.finishJiraSync(moves);
+    };
+    for (const patch of patches) {
+      this.activityService.update(patch.id, patch.body).subscribe({
+        next: (updated) => {
+          this.activities.update((list) =>
+            list.map((item) => (item.id === updated.id ? updated : item)),
+          );
+          done();
+        },
+        error: done,
+      });
+    }
+  }
+
+  private finishJiraSync(moves: string[]): void {
+    this.syncing.set(false);
+    if (moves.length === 0) {
+      this.snackBar.open('Sincronizado (nenhum card mudou de status).', undefined, { duration: 4000 });
+      return;
+    }
+    const shown = moves.slice(0, 3).join('  ·  ');
+    const more = moves.length > 3 ? `  (+${moves.length - 3})` : '';
+    this.snackBar.open(
+      `${moves.length} card(s) mudaram de status:  ${shown}${more}`,
+      undefined,
+      { duration: 8000 },
+    );
   }
 
   submit(): void {
@@ -340,12 +427,29 @@ export class ActivitiesPage implements ActivityTreeHost {
     });
   }
 
+  /** Nº de descendentes (filhos, netos…) de uma atividade. */
+  private descendantCount(id: string): number {
+    const ids = new Set([id]);
+    for (let grew = true; grew; ) {
+      grew = false;
+      for (const a of this.activities()) {
+        if (a.parent_id && ids.has(a.parent_id) && !ids.has(a.id)) {
+          ids.add(a.id);
+          grew = true;
+        }
+      }
+    }
+    return ids.size - 1;
+  }
+
   remove(activity: WorkActivity): void {
+    const linked = this.descendantCount(activity.id);
+    const message =
+      linked > 0
+        ? `Excluir "${activity.title}" e ${linked} item(ns) vinculado(s)? Essa ação não pode ser desfeita.`
+        : `Excluir "${activity.title}"? Essa ação não pode ser desfeita.`;
     const ref = this.dialog.open(ConfirmDialog, {
-      data: {
-        title: 'Excluir atividade',
-        message: `Excluir "${activity.title}"? Essa ação não pode ser desfeita.`,
-      },
+      data: { title: 'Excluir atividade', message },
     });
     ref.afterClosed().subscribe((confirmed) => {
       if (confirmed) {

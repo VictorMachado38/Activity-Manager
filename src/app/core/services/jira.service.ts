@@ -19,4 +19,9 @@ export class JiraService {
       `/api/jira/issue/${encodeURIComponent(key)}/children`,
     );
   }
+
+  /** Estado atual (status/tipo/summary) das issues informadas. */
+  syncIssues(keys: string[]): Observable<JiraMyItemsResponse> {
+    return this.http.post<JiraMyItemsResponse>('/api/jira/sync', { keys });
+  }
 }
