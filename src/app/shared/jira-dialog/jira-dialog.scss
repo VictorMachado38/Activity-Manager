@@ -1,3 +1,36 @@
+.type-filter {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0 12px;
+
+  label {
+    font-size: 0.8rem;
+    color: var(--mat-sys-on-surface-variant);
+  }
+
+  select {
+    font-family: var(--worklog-mono);
+    font-size: 0.8rem;
+    padding: 5px 8px;
+    border-radius: 8px;
+    border: 1px solid var(--mat-sys-outline-variant);
+    background: var(--mat-sys-surface);
+    color: var(--mat-sys-on-surface);
+    cursor: pointer;
+
+    &:focus {
+      outline: none;
+      border-color: var(--mat-sys-primary);
+    }
+
+    &:disabled {
+      cursor: default;
+      opacity: 0.5;
+    }
+  }
+}
+
 .state {
   display: flex;
   justify-content: center;

@@ -8,8 +8,10 @@ import { JiraMyItemsResponse } from '../models/jira-issue.model';
 export class JiraService {
   private readonly http = inject(HttpClient);
 
-  myItems(): Observable<JiraMyItemsResponse> {
-    return this.http.get<JiraMyItemsResponse>('/api/jira/my-items');
+  myItems(type?: string): Observable<JiraMyItemsResponse> {
+    return this.http.get<JiraMyItemsResponse>('/api/jira/my-items', {
+      params: type ? { type } : {},
+    });
   }
 
   children(key: string): Observable<JiraMyItemsResponse> {

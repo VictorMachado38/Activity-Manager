@@ -24,6 +24,9 @@ export class JiraDialog {
   private readonly snackBar = inject(MatSnackBar);
   private readonly dialog = inject(MatDialog);
 
+  readonly issueTypes = ['Item de Trabalho', 'Bug'];
+  readonly selectedType = signal<string>('Item de Trabalho');
+
   readonly issues = signal<JiraIssue[]>([]);
   readonly loading = signal(true);
   readonly error = signal<string | null>(null);
@@ -34,10 +37,17 @@ export class JiraDialog {
     this.load();
   }
 
+  changeType(event: Event): void {
+    const value = (event.target as HTMLSelectElement).value;
+    if (value === this.selectedType()) return;
+    this.selectedType.set(value);
+    this.load();
+  }
+
   load(): void {
     this.loading.set(true);
     this.error.set(null);
-    this.jiraService.myItems().subscribe({
+    this.jiraService.myItems(this.selectedType()).subscribe({
       next: (res) => {
         this.issues.set(res.issues);
         this.loading.set(false);

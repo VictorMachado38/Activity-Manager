@@ -90,7 +90,15 @@ function loadJiraConfig() {
   }
 }
 
-const JIRA_MY_ITEMS_JQL = 'type = "Item de Trabalho" AND assignee = currentUser() ORDER BY created DESC';
+// Tipos que o combo box do front pode pedir em /api/jira/my-items. Allowlist
+// exata — o valor entra na JQL, então nada fora daqui é aceito.
+const JIRA_MY_ITEMS_TYPES = ['Item de Trabalho', 'Bug'];
+const JIRA_MY_ITEMS_DEFAULT_TYPE = 'Item de Trabalho';
+
+function buildMyItemsJql(type) {
+  return `type = "${type}" AND assignee = currentUser() ORDER BY created DESC`;
+}
+
 const JIRA_ISSUE_KEY_PATTERN = /^[A-Z][A-Z0-9_]*-\d+$/i;
 
 async function runJiraSearch(config, jql) {
@@ -131,14 +139,20 @@ async function runJiraSearch(config, jql) {
   }));
 }
 
-async function handleJiraMyItems(req, res) {
+async function handleJiraMyItems(req, res, url) {
   const config = loadJiraConfig();
   if (!config || !config.baseUrl || !config.email || !config.apiToken) {
     return sendJson(res, 500, { detail: 'Credenciais do Jira não configuradas (jira-config.json).' });
   }
 
+  const requested = url.searchParams.get('type');
+  const type = requested ? requested : JIRA_MY_ITEMS_DEFAULT_TYPE;
+  if (!JIRA_MY_ITEMS_TYPES.includes(type)) {
+    return sendJson(res, 400, { detail: `Tipo de item inválido: ${type}` });
+  }
+
   try {
-    const issues = await runJiraSearch(config, JIRA_MY_ITEMS_JQL);
+    const issues = await runJiraSearch(config, buildMyItemsJql(type));
     return sendJson(res, 200, { issues });
   } catch (err) {
     return sendJson(res, err.status || 502, { detail: err.message || 'Falha ao conectar com o Jira' });
@@ -210,7 +224,7 @@ async function handleApi(req, res, url) {
   const parts = url.pathname.replace(/^\/api\//, '').split('/').filter(Boolean);
 
   if (parts[0] === 'jira' && parts[1] === 'my-items' && req.method === 'GET') {
-    return handleJiraMyItems(req, res);
+    return handleJiraMyItems(req, res, url);
   }
 
   if (parts[0] === 'jira' && parts[1] === 'issue' && parts[3] === 'children' && req.method === 'GET') {
