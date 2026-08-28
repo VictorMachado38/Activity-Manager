@@ -1,4 +1,5 @@
 import { Component, Input } from '@angular/core';
+import { CdkDrag, CdkDragDrop, DragDropModule } from '@angular/cdk/drag-drop';
 import { MatIconModule } from '@angular/material/icon';
 
 import { WorkActivity, WorkStatus } from '../../../core/models/activity.model';
@@ -14,11 +15,18 @@ export interface JiraActivityTreeHost {
   isParentExpanded(parentId: string): boolean;
   toggleParent(parentId: string): void;
   changeStatus(activity: WorkActivity, status: WorkStatus): void;
+  childrenListId(parentId: string): string;
+  parentGroupId(id: string): string | null;
+  allDropListIds(): string[];
+  drop(event: CdkDragDrop<string | null>): void;
+  visibleChildrenOf(parentId: string): WorkActivity[];
+  isJiraHidden(activity: WorkActivity): boolean;
+  dragDisabled(): boolean;
 }
 
 @Component({
   selector: 'app-jira-activity-node',
-  imports: [MatIconModule, JiraActivityNode],
+  imports: [DragDropModule, MatIconModule, JiraActivityNode],
   templateUrl: './jira-activity-node.html',
   styleUrl: './jira-activity-node.scss',
 })
@@ -26,6 +34,11 @@ export class JiraActivityNode {
   @Input({ required: true }) activity!: WorkActivity;
   @Input({ required: true }) page!: JiraActivityTreeHost;
   @Input() depth = 1;
+
+  // Lista de filhos só aceita outros itens do Jira (a subárvore é renderizada
+  // por tipo). O reordenamento livre entre os dois tipos acontece na raiz.
+  protected readonly acceptDrag = (drag: CdkDrag): boolean =>
+    !!(drag.data as WorkActivity | undefined)?.jira_key;
 
   statusClass(): string {
     return jiraStatusClass({

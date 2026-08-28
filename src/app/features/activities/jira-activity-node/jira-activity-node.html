@@ -1,5 +1,9 @@
 <div class="activity-group">
-  <div class="activity-row" [class.child-row]="depth > 1">
+  <div class="activity-row" [class.child-row]="depth > 1" cdkDrag [cdkDragData]="activity">
+    <span class="drag-handle" cdkDragHandle aria-label="Reordenar atividade">
+      <mat-icon>drag_indicator</mat-icon>
+    </span>
+
     @if (page.canHaveChildren(activity)) {
       <button
         type="button"
@@ -11,7 +15,7 @@
       >
         <mat-icon>{{ page.isParentExpanded(activity.id) ? 'expand_less' : 'expand_more' }}</mat-icon>
         @if (page.hasChildren(activity)) {
-          <span class="child-count">{{ page.childrenOf(activity.id).length }}</span>
+          <span class="child-count">{{ page.visibleChildrenOf(activity.id).length }}</span>
         }
       </button>
     }
@@ -88,11 +92,20 @@
   </div>
 
   @if (page.canHaveChildren(activity) && page.isParentExpanded(activity.id)) {
-    <div class="children-list">
-      @for (child of page.childrenOf(activity.id); track child.id) {
+    <div
+      class="children-list"
+      cdkDropList
+      [id]="page.childrenListId(activity.id)"
+      [cdkDropListConnectedTo]="page.allDropListIds()"
+      [cdkDropListData]="page.parentGroupId(activity.id)"
+      [cdkDropListDisabled]="page.dragDisabled()"
+      [cdkDropListEnterPredicate]="acceptDrag"
+      (cdkDropListDropped)="page.drop($event)"
+    >
+      @for (child of page.visibleChildrenOf(activity.id); track child.id) {
         <app-jira-activity-node [activity]="child" [page]="page" [depth]="depth + 1" />
       } @empty {
-        <p class="drop-hint">Nenhum filho.</p>
+        <p class="drop-hint">Arraste um item do Jira aqui para vincular como filho</p>
       }
     </div>
   }

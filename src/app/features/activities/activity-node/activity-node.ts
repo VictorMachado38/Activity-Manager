@@ -1,5 +1,5 @@
 import { Component, Input } from '@angular/core';
-import { CdkDragDrop, DragDropModule } from '@angular/cdk/drag-drop';
+import { CdkDrag, CdkDragDrop, DragDropModule } from '@angular/cdk/drag-drop';
 import { FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { MatIconModule } from '@angular/material/icon';
 
@@ -43,4 +43,9 @@ export class ActivityNode {
   @Input({ required: true }) activity!: WorkActivity;
   @Input({ required: true }) page!: ActivityTreeHost;
   @Input() depth = 1;
+
+  // Lista de filhos só aceita atividades locais (não-Jira); a subárvore é
+  // renderizada por tipo. Reordenar os dois tipos juntos acontece na raiz.
+  protected readonly acceptDrag = (drag: CdkDrag): boolean =>
+    !(drag.data as WorkActivity | undefined)?.jira_key;
 }

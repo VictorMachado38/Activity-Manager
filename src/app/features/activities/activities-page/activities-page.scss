@@ -63,6 +63,49 @@
   }
 }
 
+.status-hider {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 8px;
+
+  .label {
+    font-family: var(--worklog-mono);
+    font-size: 0.72rem;
+    color: var(--mat-sys-on-surface-variant);
+  }
+}
+
+.hide-chip {
+  font-family: var(--worklog-mono);
+  font-size: 0.72rem;
+  padding: 3px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--mat-sys-outline-variant);
+  background: transparent;
+  color: var(--mat-sys-on-surface-variant);
+  cursor: pointer;
+  transition: background-color 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+
+  &:hover {
+    border-color: var(--mat-sys-on-surface-variant);
+  }
+
+  // "on" = status escondido da árvore
+  &.on {
+    background: var(--mat-sys-primary);
+    border-color: var(--mat-sys-primary);
+    color: var(--mat-sys-on-primary);
+    text-decoration: line-through;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hide-chip {
+    transition: none;
+  }
+}
+
 .state {
   display: flex;
   justify-content: center;

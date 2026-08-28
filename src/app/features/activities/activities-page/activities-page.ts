@@ -64,7 +64,26 @@ export class ActivitiesPage implements ActivityTreeHost {
   readonly showForm = signal(false);
   readonly expandedParents = signal<Set<string>>(new Set());
 
+  // Status do Jira ocultos na árvore (ex.: esconder tudo que está "Concluído").
+  readonly hiddenJiraStatuses = signal<Set<string>>(new Set());
+
   readonly topLevelActivities = computed(() => this.activities().filter((a) => !a.parent_id));
+
+  // Status do Jira presentes nos FILHOS, para montar os chips de "Ocultar status"
+  // (o filtro só esconde filhos; os itens de topo continuam sempre visíveis).
+  readonly jiraStatusesInTree = computed(() =>
+    [
+      ...new Set(
+        this.activities()
+          .filter((a) => a.parent_id && a.jira_key && a.jira_status)
+          .map((a) => a.jira_status as string),
+      ),
+    ].sort((a, b) => a.localeCompare(b)),
+  );
+
+  // Com filtro ativo a lista exibida difere da real; desliga o drag para os
+  // índices não saírem de sincronia.
+  readonly dragDisabled = computed(() => this.hiddenJiraStatuses().size > 0);
 
   readonly childrenByParent = computed(() => {
     const map = new Map<string, WorkActivity[]>();
@@ -174,6 +193,29 @@ export class ActivitiesPage implements ActivityTreeHost {
 
   childrenOf(parentId: string): WorkActivity[] {
     return this.childrenByParent().get(parentId) ?? [];
+  }
+
+  /** Filhos visíveis (aplica o filtro "Ocultar status"). Só para exibição — o
+   * drag continua usando `childrenOf` e fica desabilitado enquanto há filtro. */
+  visibleChildrenOf(parentId: string): WorkActivity[] {
+    return this.childrenOf(parentId).filter((c) => !this.isJiraHidden(c));
+  }
+
+  isJiraHidden(activity: WorkActivity): boolean {
+    return !!activity.jira_status && this.hiddenJiraStatuses().has(activity.jira_status);
+  }
+
+  isJiraStatusHidden(status: string): boolean {
+    return this.hiddenJiraStatuses().has(status);
+  }
+
+  toggleHiddenJiraStatus(status: string): void {
+    this.hiddenJiraStatuses.update((current) => {
+      const next = new Set(current);
+      if (next.has(status)) next.delete(status);
+      else next.add(status);
+      return next;
+    });
   }
 
   hasChildren(activity: WorkActivity): boolean {
