@@ -63,7 +63,11 @@
           (cdkDropListDropped)="drop($event)"
         >
           @for (activity of topLevelActivities(); track activity.id) {
-            <app-activity-node [activity]="activity" [page]="this" [depth]="1" />
+            @if (activity.jira_key) {
+              <app-jira-activity-node [activity]="activity" [page]="this" [depth]="1" />
+            } @else {
+              <app-activity-node [activity]="activity" [page]="this" [depth]="1" />
+            }
           }
         </div>
       </div>

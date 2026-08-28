@@ -1,0 +1,48 @@
+<div class="activity-group">
+  <div class="activity-row" [class.child-row]="depth > 1">
+    @if (page.canHaveChildren(activity)) {
+      <button
+        type="button"
+        class="expand-toggle"
+        [class.has-children]="page.hasChildren(activity)"
+        (click)="page.toggleParent(activity.id)"
+        [attr.aria-expanded]="page.isParentExpanded(activity.id)"
+        aria-label="Mostrar/ocultar filhos"
+      >
+        <mat-icon>{{ page.isParentExpanded(activity.id) ? 'expand_less' : 'expand_more' }}</mat-icon>
+        @if (page.hasChildren(activity)) {
+          <span class="child-count">{{ page.childrenOf(activity.id).length }}</span>
+        }
+      </button>
+    }
+
+    <span class="jira-badge" title="Veio do Jira">
+      <mat-icon inline>account_tree</mat-icon>
+    </span>
+
+    <span class="jira-key">{{ activity.jira_key }}</span>
+
+    <a [href]="activity.jira_url" target="_blank" rel="noopener" class="activity-link">
+      <span>{{ activity.notes || activity.title }}</span>
+      <mat-icon inline>open_in_new</mat-icon>
+    </a>
+
+    @if (activity.jira_issue_type) {
+      <span class="issue-type">{{ activity.jira_issue_type }}</span>
+    }
+
+    @if (activity.jira_status) {
+      <span class="issue-status" [class]="statusClass()">{{ activity.jira_status }}</span>
+    }
+  </div>
+
+  @if (page.canHaveChildren(activity) && page.isParentExpanded(activity.id)) {
+    <div class="children-list">
+      @for (child of page.childrenOf(activity.id); track child.id) {
+        <app-jira-activity-node [activity]="child" [page]="page" [depth]="depth + 1" />
+      } @empty {
+        <p class="drop-hint">Nenhum filho.</p>
+      }
+    </div>
+  }
+</div>

@@ -32,6 +32,17 @@
           >
             <mat-icon inline>account_tree</mat-icon>
           </button>
+          <button
+            type="button"
+            class="add-btn"
+            [class.added]="isImported(issue)"
+            [disabled]="isImporting(issue) || isImported(issue)"
+            (click)="addToActivities(issue)"
+            [attr.aria-label]="isImported(issue) ? 'Já adicionado' : 'Adicionar às Atividades'"
+            [title]="isImported(issue) ? 'Já adicionado às Atividades' : 'Adicionar às Atividades'"
+          >
+            <mat-icon inline>{{ isImported(issue) ? 'check' : 'add_task' }}</mat-icon>
+          </button>
         </div>
       }
     </div>

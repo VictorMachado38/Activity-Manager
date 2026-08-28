@@ -14,6 +14,9 @@ export interface WorkActivity {
   status: WorkStatus;
   notes: string | null;
   parent_id: string | null;
+  jira_key: string | null;
+  jira_status: string | null;
+  jira_issue_type: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -24,6 +27,9 @@ export interface WorkActivityCreate {
   status?: WorkStatus;
   notes?: string | null;
   parent_id?: string | null;
+  jira_key?: string | null;
+  jira_status?: string | null;
+  jira_issue_type?: string | null;
 }
 
 export interface WorkActivityUpdate {
@@ -32,4 +38,7 @@ export interface WorkActivityUpdate {
   status?: WorkStatus;
   notes?: string | null;
   parent_id?: string | null;
+  jira_key?: string | null;
+  jira_status?: string | null;
+  jira_issue_type?: string | null;
 }

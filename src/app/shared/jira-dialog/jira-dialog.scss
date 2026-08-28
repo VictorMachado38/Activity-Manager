@@ -56,7 +56,8 @@
   }
 }
 
-.children-btn {
+.children-btn,
+.add-btn {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -76,10 +77,20 @@
     height: 16px;
   }
 
-  &:hover {
+  &:hover:not(:disabled) {
     background: var(--mat-sys-surface-container-highest);
     color: var(--mat-sys-primary);
   }
+
+  &:disabled {
+    cursor: default;
+    opacity: 0.5;
+  }
+}
+
+.add-btn.added {
+  color: #34d399;
+  opacity: 1;
 }
 
 .issue-key {

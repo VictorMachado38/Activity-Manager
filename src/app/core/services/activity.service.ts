@@ -1,5 +1,5 @@
 import { HttpClient } from '@angular/common/http';
-import { Injectable, inject } from '@angular/core';
+import { Injectable, inject, signal } from '@angular/core';
 import { Observable } from 'rxjs';
 
 import { WorkActivity, WorkActivityCreate, WorkActivityUpdate } from '../models/activity.model';
@@ -8,6 +8,14 @@ import { WorkActivity, WorkActivityCreate, WorkActivityUpdate } from '../models/
 export class ActivityService {
   private readonly http = inject(HttpClient);
   private readonly base = '/api/activities';
+
+  // Incrementado quando atividades são criadas fora da própria página (ex.: importação
+  // do Jira), para a ActivitiesPage saber que precisa recarregar a lista.
+  readonly changed = signal(0);
+
+  notifyChanged(): void {
+    this.changed.update((value) => value + 1);
+  }
 
   list(): Observable<WorkActivity[]> {
     return this.http.get<WorkActivity[]>(this.base);

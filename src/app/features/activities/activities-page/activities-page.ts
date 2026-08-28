@@ -1,4 +1,4 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, effect, inject, signal } from '@angular/core';
 import {
   CdkDragDrop,
   DragDropModule,
@@ -20,6 +20,7 @@ import { WorkActivity, WorkStatus } from '../../../core/models/activity.model';
 import { ActivityService } from '../../../core/services/activity.service';
 import { extractJiraKey } from '../../../core/utils/extract-jira-key';
 import { ActivityNode, ActivityTreeHost, StatusStep } from '../activity-node/activity-node';
+import { JiraActivityNode } from '../jira-activity-node/jira-activity-node';
 
 const MAX_DEPTH = 3;
 
@@ -45,6 +46,7 @@ const STATUS_STEPS: StatusStep[] = [
     MatIconModule,
     MatProgressSpinnerModule,
     ActivityNode,
+    JiraActivityNode,
   ],
   templateUrl: './activities-page.html',
   styleUrl: './activities-page.scss',
@@ -94,7 +96,10 @@ export class ActivitiesPage implements ActivityTreeHost {
   });
 
   constructor() {
-    this.reload();
+    effect(() => {
+      this.activityService.changed();
+      this.reload();
+    });
   }
 
   reload(): void {

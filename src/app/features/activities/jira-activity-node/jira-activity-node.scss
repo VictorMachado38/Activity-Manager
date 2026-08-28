@@ -1,0 +1,154 @@
+.activity-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.activity-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  background: var(--mat-sys-surface-container);
+  border-radius: 12px;
+  padding: 8px 10px 8px 14px;
+}
+
+.expand-toggle {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: var(--mat-sys-on-surface-variant);
+  cursor: pointer;
+  flex-shrink: 0;
+  padding: 0;
+  opacity: 0.35;
+
+  mat-icon {
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+  }
+
+  &.has-children {
+    opacity: 1;
+    width: auto;
+    padding: 0 6px 0 2px;
+  }
+
+  &:hover {
+    background: var(--mat-sys-surface-container-high);
+  }
+}
+
+.child-count {
+  font-family: var(--worklog-mono);
+  font-size: 0.7rem;
+  color: var(--mat-sys-primary);
+}
+
+.jira-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #60a5fa;
+  flex-shrink: 0;
+
+  mat-icon {
+    font-size: 15px;
+    width: 15px;
+    height: 15px;
+  }
+}
+
+.jira-key {
+  font-family: var(--worklog-mono);
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: var(--mat-sys-tertiary);
+  flex-shrink: 0;
+}
+
+.activity-link {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.85rem;
+  color: inherit;
+  text-decoration: none;
+  flex: 1 1 auto;
+  min-width: 80px;
+  overflow: hidden;
+
+  span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  mat-icon {
+    font-size: 13px;
+    width: 13px;
+    height: 13px;
+    opacity: 0.65;
+    flex-shrink: 0;
+  }
+}
+
+.issue-type {
+  font-family: var(--worklog-mono);
+  font-size: 0.72rem;
+  color: var(--mat-sys-primary);
+  border: 1px solid var(--mat-sys-primary);
+  border-radius: 6px;
+  padding: 2px 8px;
+  flex-shrink: 0;
+}
+
+.issue-status {
+  font-family: var(--worklog-mono);
+  font-size: 0.72rem;
+  color: var(--mat-sys-on-surface-variant);
+  border: 1px solid var(--mat-sys-outline-variant);
+  border-radius: 6px;
+  padding: 2px 8px;
+  flex-shrink: 0;
+
+  // Cores por status — hoje só mapeadas para o tipo "Bug".
+  &.status-active {
+    color: #60a5fa;
+    border-color: #60a5fa;
+  }
+
+  &.status-done {
+    color: #34d399;
+    border-color: #34d399;
+  }
+}
+
+.children-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 6px 0 4px 34px;
+  padding-left: 12px;
+  border-left: 2px solid var(--mat-sys-outline-variant);
+}
+
+.child-row {
+  padding-top: 6px;
+  padding-bottom: 6px;
+  background: var(--mat-sys-surface-container-high);
+}
+
+.drop-hint {
+  margin: 0;
+  padding: 8px 10px;
+  font-family: var(--worklog-mono);
+  font-size: 0.75rem;
+  color: var(--mat-sys-on-surface-variant);
+}
