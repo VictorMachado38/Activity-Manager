@@ -1,16 +1,19 @@
 import { Component, Input } from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
 
-import { WorkActivity } from '../../../core/models/activity.model';
+import { WorkActivity, WorkStatus } from '../../../core/models/activity.model';
 import { jiraStatusClass } from '../../../core/utils/jira-status';
 import { JiraWorkflowProgress, jiraWorkflowProgress } from '../../../core/utils/jira-workflow';
+import { StatusStep } from '../activity-node/activity-node';
 
 export interface JiraActivityTreeHost {
+  readonly steps: StatusStep[];
   childrenOf(parentId: string): WorkActivity[];
   hasChildren(activity: WorkActivity): boolean;
   canHaveChildren(activity: WorkActivity): boolean;
   isParentExpanded(parentId: string): boolean;
   toggleParent(parentId: string): void;
+  changeStatus(activity: WorkActivity, status: WorkStatus): void;
 }
 
 @Component({
@@ -40,5 +43,28 @@ export class JiraActivityNode {
       issueType: this.activity.jira_issue_type,
       status: this.activity.jira_status,
     });
+  }
+
+  /** Passo pessoal atual (de `page.steps`) correspondente a `activity.status`. */
+  currentStep(): StatusStep | undefined {
+    return this.page.steps.find((step) => step.status === this.activity.status);
+  }
+
+  /**
+   * Progresso pessoal em % (0–100). Os 7 passos de `page.steps` valem frações
+   * iguais (~14,28% cada); estar no último passo ("No ar") equivale a 100%.
+   */
+  personalProgress(): number {
+    const steps = this.page.steps;
+    const index = steps.findIndex((step) => step.status === this.activity.status);
+    if (index === -1) return 0;
+    return Math.round(((index + 1) / steps.length) * 100);
+  }
+
+  onStatusSelect(event: Event): void {
+    const status = (event.target as HTMLSelectElement).value as WorkStatus;
+    if (status !== this.activity.status) {
+      this.page.changeStatus(this.activity, status);
+    }
   }
 }

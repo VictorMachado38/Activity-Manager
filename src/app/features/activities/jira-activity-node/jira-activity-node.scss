@@ -177,6 +177,107 @@
   }
 }
 
+// Barra de progresso pessoal (lado direito) — reflete `activity.status` sobre
+// os 7 passos pessoais de `page.steps`. Clicar abre um <select> nativo.
+.perso-progress {
+  position: relative;
+  margin-left: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 148px;
+  max-width: 200px;
+  flex: 0 1 auto;
+  cursor: pointer;
+}
+
+.progress-head {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--worklog-mono);
+  font-size: 0.66rem;
+  line-height: 1;
+  color: var(--mat-sys-on-surface-variant);
+
+  mat-icon {
+    font-size: 13px;
+    width: 13px;
+    height: 13px;
+    flex-shrink: 0;
+  }
+}
+
+.progress-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.progress-pct {
+  margin-left: auto;
+  font-weight: 700;
+  color: var(--mat-sys-on-surface);
+}
+
+.progress-track {
+  position: relative;
+  width: 100%;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--mat-sys-surface-container-high);
+  overflow: hidden;
+}
+
+.progress-fill {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  min-width: 3px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #3b82f6, #818cf8);
+  box-shadow: 0 0 8px rgba(96, 165, 250, 0.45);
+  transition: width 0.35s cubic-bezier(0.4, 0, 0.2, 1), background 0.25s ease,
+    box-shadow 0.25s ease;
+}
+
+.perso-progress.is-testing .progress-fill {
+  background: linear-gradient(90deg, #e59f2e, #f0b64d);
+  box-shadow: 0 0 8px rgba(240, 182, 77, 0.5);
+}
+
+.perso-progress.is-live .progress-fill {
+  background: linear-gradient(90deg, #2bb673, #3ddc84);
+  box-shadow: 0 0 10px rgba(61, 220, 132, 0.55);
+}
+
+// <select> nativo cobrindo toda a barra: clicar em qualquer ponto abre o combo.
+.progress-select {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  border: none;
+  opacity: 0;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.perso-progress:focus-within .progress-track {
+  outline: 2px solid var(--mat-sys-primary);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .progress-fill {
+    transition: none;
+  }
+}
+
 .children-list {
   display: flex;
   flex-direction: column;

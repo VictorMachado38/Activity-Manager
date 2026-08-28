@@ -35,7 +35,7 @@
       <div
         class="status-steps"
         role="list"
-        [attr.aria-label]="'Status: ' + activity.jira_status"
+        [attr.aria-label]="'Status Jira: ' + activity.jira_status"
       >
         @for (step of wf.steps; track step.status; let i = $index) {
           <span
@@ -51,6 +51,35 @@
           </span>
         }
       </div>
+
+      <label
+        class="perso-progress"
+        [class.is-live]="activity.status === 'no_ar'"
+        [class.is-testing]="activity.status === 'testando'"
+        [title]="(currentStep()?.label ?? '—') + ' · ' + personalProgress() + '%'"
+      >
+        <span class="progress-head">
+          <mat-icon inline>{{ currentStep()?.icon ?? 'radio_button_unchecked' }}</mat-icon>
+          <span class="progress-name">{{ currentStep()?.label ?? '—' }}</span>
+          <span class="progress-pct">{{ personalProgress() }}%</span>
+        </span>
+        <span class="progress-track">
+          <span class="progress-fill" [style.width.%]="personalProgress()"></span>
+        </span>
+        <select
+          class="progress-select"
+          (change)="onStatusSelect($event)"
+          [attr.aria-label]="
+            'Alterar status pessoal (atual: ' + (currentStep()?.label ?? 'nenhum') + ')'
+          "
+        >
+          @for (step of page.steps; track step.status) {
+            <option [value]="step.status" [selected]="step.status === activity.status">
+              {{ step.label }}
+            </option>
+          }
+        </select>
+      </label>
     } @else if (activity.jira_status) {
       <span class="issue-status" [class]="statusClass()">{{ activity.jira_status }}</span>
     }
