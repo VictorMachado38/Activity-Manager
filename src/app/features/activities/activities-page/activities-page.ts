@@ -137,7 +137,11 @@ export class ActivitiesPage implements ActivityTreeHost {
   syncWithJira(): void {
     if (this.syncing()) return;
     const keys = [
-      ...new Set(this.activities().filter((a) => a.jira_key).map((a) => a.jira_key as string)),
+      ...new Set(
+        this.activities()
+          .filter((a) => a.jira_key)
+          .map((a) => a.jira_key as string),
+      ),
     ];
     if (keys.length === 0) {
       this.snackBar.open('Nenhuma atividade importada do Jira.', undefined, { duration: 3000 });
@@ -148,11 +152,9 @@ export class ActivitiesPage implements ActivityTreeHost {
       next: (res) => this.applyJiraSync(res.issues),
       error: (err) => {
         this.syncing.set(false);
-        this.snackBar.open(
-          err?.error?.detail || 'Falha ao sincronizar com o Jira.',
-          undefined,
-          { duration: 5000 },
-        );
+        this.snackBar.open(err?.error?.detail || 'Falha ao sincronizar com o Jira.', undefined, {
+          duration: 5000,
+        });
       },
     });
   }
@@ -178,15 +180,16 @@ export class ActivitiesPage implements ActivityTreeHost {
       if (Object.keys(body).length > 0) patches.push({ id: activity.id, body });
     }
 
+    // Primeiro aplica os patches de status/tipo; só depois procura filhos novos,
+    // para o diff de filhos rodar sobre a árvore já atualizada.
     if (patches.length === 0) {
-      this.syncing.set(false);
-      this.snackBar.open('Tudo já estava sincronizado com o Jira.', undefined, { duration: 3000 });
+      this.syncNewChildren(moves);
       return;
     }
 
     let remaining = patches.length;
     const done = (): void => {
-      if (--remaining === 0) this.finishJiraSync(moves);
+      if (--remaining === 0) this.syncNewChildren(moves);
     };
     for (const patch of patches) {
       this.activityService.update(patch.id, patch.body).subscribe({
@@ -201,16 +204,87 @@ export class ActivitiesPage implements ActivityTreeHost {
     }
   }
 
-  private finishJiraSync(moves: string[]): void {
-    this.syncing.set(false);
-    if (moves.length === 0) {
-      this.snackBar.open('Sincronizado (nenhum card mudou de status).', undefined, { duration: 4000 });
+  /**
+   * Para cada atividade-raiz importada do Jira (tem `jira_key` e não é filha de
+   * outra), busca os filhos atuais no Jira e cria atividades para os que ainda
+   * não existem em lugar nenhum da listagem. É isso que faz um bug novo de um
+   * item já importado aparecer ao clicar em "Sinc. Jira".
+   */
+  private syncNewChildren(moves: string[]): void {
+    const all = this.activities();
+    const roots = all.filter((a) => a.jira_key && !a.parent_id);
+    const knownKeys = new Set(all.filter((a) => a.jira_key).map((a) => a.jira_key as string));
+
+    if (roots.length === 0) {
+      this.finishJiraSync(moves, 0);
       return;
     }
-    const shown = moves.slice(0, 3).join('  ·  ');
-    const more = moves.length > 3 ? `  (+${moves.length - 3})` : '';
+
+    let remainingRoots = roots.length;
+    let pendingCreates = 0;
+    let added = 0;
+
+    const maybeFinish = (): void => {
+      if (remainingRoots > 0 || pendingCreates > 0) return;
+      if (added > 0) this.activityService.notifyChanged();
+      this.finishJiraSync(moves, added);
+    };
+
+    for (const root of roots) {
+      this.jiraService.children(root.jira_key as string).subscribe({
+        next: (res) => {
+          remainingRoots--;
+          const newChildren = res.issues.filter(
+            (child) => child.key !== root.jira_key && !knownKeys.has(child.key),
+          );
+          for (const child of newChildren) {
+            knownKeys.add(child.key); // evita duplicar se dois pais listarem o mesmo item
+            pendingCreates++;
+            this.activityService
+              .create({
+                title: child.key,
+                jira_url: child.url,
+                notes: child.summary,
+                jira_key: child.key,
+                jira_status: child.status,
+                jira_issue_type: child.issueType,
+                parent_id: root.id,
+              })
+              .subscribe({
+                next: () => {
+                  added++;
+                  pendingCreates--;
+                  maybeFinish();
+                },
+                error: () => {
+                  pendingCreates--;
+                  maybeFinish();
+                },
+              });
+          }
+          maybeFinish();
+        },
+        error: () => {
+          remainingRoots--;
+          maybeFinish();
+        },
+      });
+    }
+  }
+
+  private finishJiraSync(moves: string[], addedChildren = 0): void {
+    this.syncing.set(false);
+    const parts: string[] = [];
+    if (moves.length > 0) {
+      const shown = moves.slice(0, 3).join('  ·  ');
+      const more = moves.length > 3 ? `  (+${moves.length - 3})` : '';
+      parts.push(`${moves.length} card(s) mudaram de status:  ${shown}${more}`);
+    }
+    if (addedChildren > 0) {
+      parts.push(`${addedChildren} novo(s) filho(s) importado(s) do Jira.`);
+    }
     this.snackBar.open(
-      `${moves.length} card(s) mudaram de status:  ${shown}${more}`,
+      parts.length > 0 ? parts.join('   |   ') : 'Sincronizado — nada mudou.',
       undefined,
       { duration: 8000 },
     );
@@ -226,11 +300,13 @@ export class ActivitiesPage implements ActivityTreeHost {
     const title = extractJiraKey(url) ?? url;
     const notes = raw.notes?.trim() || null;
     const parentId = raw.parent_id || null;
-    this.activityService.create({ title, jira_url: url, notes, parent_id: parentId }).subscribe(() => {
-      this.form.reset();
-      this.showForm.set(false);
-      this.reload();
-    });
+    this.activityService
+      .create({ title, jira_url: url, notes, parent_id: parentId })
+      .subscribe(() => {
+        this.form.reset();
+        this.showForm.set(false);
+        this.reload();
+      });
   }
 
   displayLabel(activity: WorkActivity): string {
@@ -419,12 +495,14 @@ export class ActivitiesPage implements ActivityTreeHost {
     const url = raw.jira_url!.trim();
     const title = extractJiraKey(url) ?? url;
     const notes = raw.notes?.trim() || null;
-    this.activityService.update(activity.id, { title, jira_url: url, notes }).subscribe((updated) => {
-      this.activities.update((list) =>
-        list.map((item) => (item.id === updated.id ? updated : item)),
-      );
-      this.editingId.set(null);
-    });
+    this.activityService
+      .update(activity.id, { title, jira_url: url, notes })
+      .subscribe((updated) => {
+        this.activities.update((list) =>
+          list.map((item) => (item.id === updated.id ? updated : item)),
+        );
+        this.editingId.set(null);
+      });
   }
 
   /** Nº de descendentes (filhos, netos…) de uma atividade. */

@@ -5,6 +5,34 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const tls = require('tls');
+
+// Ambiente corporativo (proxy/firewall com inspeção de TLS) entrega um
+// certificado assinado por uma CA interna que o Node não conhece — o `fetch`
+// contra o Jira então estoura `UNABLE_TO_GET_ISSUER_CERT_LOCALLY`. Essa CA já
+// está no repositório de certificados do Windows, então mandamos o Node confiar
+// nele também (precisa de Node >= 22.15). Um `jira-ca.pem` opcional na raiz é
+// somado ao conjunto, caso o repositório do Windows não baste.
+function trustSystemCertificates() {
+  if (typeof tls.setDefaultCACertificates !== 'function') {
+    console.warn('[tls] Node sem setDefaultCACertificates (< 22.15) — se o Jira falhar com erro de certificado, atualize o Node ou rode com --use-system-ca.');
+    return;
+  }
+  try {
+    const certs = new Set([...tls.getCACertificates('default'), ...tls.getCACertificates('system')]);
+    const extraPem = path.join(__dirname, 'jira-ca.pem');
+    if (fs.existsSync(extraPem)) {
+      for (const block of fs.readFileSync(extraPem, 'utf-8').match(/-----BEGIN CERTIFICATE-----[\s\S]+?-----END CERTIFICATE-----/g) || []) {
+        certs.add(block);
+      }
+    }
+    tls.setDefaultCACertificates([...certs]);
+  } catch (err) {
+    console.warn('[tls] não foi possível carregar as CAs do sistema:', err.message);
+  }
+}
+
+trustSystemCertificates();
 
 const PORT = process.env.PORT || 3000;
 const DATA_FILE = path.join(__dirname, 'data.json');
@@ -101,9 +129,62 @@ function buildMyItemsJql(type) {
 
 const JIRA_ISSUE_KEY_PATTERN = /^[A-Z][A-Z0-9_]*-\d+$/i;
 
+// O `fetch` do Node reaproveita sockets keep-alive num pool global. Contra o
+// front da Atlassian (Cloudflare) esses sockets às vezes ficam "meio abertos"
+// e, a partir daí, TODO request seguinte estoura `TypeError: fetch failed` até
+// o processo reiniciar. Duas defesas: forçar `Connection: close` (socket novo
+// a cada request) e repetir uma vez em falha de rede. Também logamos
+// `err.cause`, que é onde o motivo real (ECONNRESET, ENOTFOUND, cert...) fica
+// escondido — a mensagem "fetch failed" sozinha não diz nada.
+async function jiraFetch(url, options = {}, attempt = 1) {
+  const merged = {
+    ...options,
+    headers: { ...(options.headers || {}), Connection: 'close' },
+  };
+  try {
+    return await fetch(url, merged);
+  } catch (err) {
+    const cause = err && err.cause ? err.cause : err;
+    console.error(`[jira] fetch falhou (tentativa ${attempt}) em ${url}:`, cause);
+    if (attempt < 2) return jiraFetch(url, options, attempt + 1);
+    const code = cause && (cause.code || cause.name);
+    const msg = cause && (cause.message || String(cause));
+    const wrapped = new Error(
+      ['Falha de rede ao conectar no Jira', code, code && code !== msg ? msg : null]
+        .filter(Boolean)
+        .join(': '),
+    );
+    wrapped.status = 502;
+    throw wrapped;
+  }
+}
+
+function jiraAuthHeader(config) {
+  return `Basic ${Buffer.from(`${config.email}:${config.apiToken}`).toString('base64')}`;
+}
+
+// O endpoint novo /rest/api/3/search/jql responde 200 com {"issues":[]} quando
+// o token está expirado/revogado — ou seja, "não achou nada" e "não está
+// autenticado" ficam idênticos na tela. Este probe no /myself desfaz a
+// ambiguidade: se o token não vale, devolve um 401 com recado claro em vez de
+// uma lista vazia silenciosa.
+async function assertJiraAuth(config) {
+  const res = await jiraFetch(`${config.baseUrl}/rest/api/3/myself`, {
+    headers: { Authorization: jiraAuthHeader(config), Accept: 'application/json' },
+  });
+  if (res.status === 401 || res.status === 403) {
+    const err = new Error(
+      'Token do Jira inválido ou expirado. Gere um novo em ' +
+      'id.atlassian.com/manage-profile/security/api-tokens e atualize o jira-config.json.',
+    );
+    err.status = 401;
+    throw err;
+  }
+}
+
 async function runJiraSearch(config, jql) {
   const auth = Buffer.from(`${config.email}:${config.apiToken}`).toString('base64');
-  const jiraRes = await fetch(`${config.baseUrl}/rest/api/3/search/jql`, {
+  const jiraRes = await jiraFetch(`${config.baseUrl}/rest/api/3/search/jql`, {
     method: 'POST',
     headers: {
       Authorization: `Basic ${auth}`,
@@ -152,6 +233,7 @@ async function handleJiraMyItems(req, res, url) {
   }
 
   try {
+    await assertJiraAuth(config);
     const issues = await runJiraSearch(config, buildMyItemsJql(type));
     return sendJson(res, 200, { issues });
   } catch (err) {
@@ -182,8 +264,9 @@ async function handleJiraChildren(req, res, key) {
   }
 
   try {
+    await assertJiraAuth(config);
     const auth = Buffer.from(`${config.email}:${config.apiToken}`).toString('base64');
-    const issueRes = await fetch(
+    const issueRes = await jiraFetch(
       `${config.baseUrl}/rest/api/3/issue/${encodeURIComponent(key)}?fields=summary,status,issuetype,subtasks,issuelinks`,
       { headers: { Authorization: `Basic ${auth}`, Accept: 'application/json' } },
     );
