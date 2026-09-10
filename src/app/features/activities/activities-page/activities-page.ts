@@ -1,6 +1,9 @@
-import { Component, computed, effect, inject, signal } from '@angular/core';
+import { DOCUMENT } from '@angular/common';
+import { Component, DestroyRef, computed, effect, inject, signal } from '@angular/core';
 import {
+  CdkDrag,
   CdkDragDrop,
+  CdkDropList,
   DragDropModule,
   moveItemInArray,
   transferArrayItem,
@@ -59,6 +62,13 @@ export class ActivitiesPage implements ActivityTreeHost {
   private readonly jiraService = inject(JiraService);
   private readonly dialog = inject(MatDialog);
   private readonly snackBar = inject(MatSnackBar);
+  private readonly document = inject(DOCUMENT);
+
+  // Última posição do ponteiro, para o enterPredicate da lista raiz saber se um
+  // filho está só sendo reordenado dentro da própria lista (ponteiro sobre uma
+  // .children-list) ou realmente saindo para o nível de topo.
+  private pointerX = 0;
+  private pointerY = 0;
 
   readonly steps = STATUS_STEPS;
   readonly activities = signal<WorkActivity[]>([]);
@@ -70,6 +80,11 @@ export class ActivitiesPage implements ActivityTreeHost {
 
   // Status do Jira ocultos na árvore (ex.: esconder tudo que está "Concluído").
   readonly hiddenJiraStatuses = signal<Set<string>>(new Set());
+
+  // jira_key -> cadeia de ancestrais no momento da remoção. Enquanto a chave
+  // estiver aqui, "Sinc. Jira" não recria o item. Remover um ancestral limpa os
+  // descendentes (a cadeia deles contém a chave removida).
+  readonly dismissedJira = signal<Record<string, string[]>>({});
 
   readonly topLevelActivities = computed(() => this.activities().filter((a) => !a.parent_id));
 
@@ -85,9 +100,19 @@ export class ActivitiesPage implements ActivityTreeHost {
     ].sort((a, b) => a.localeCompare(b)),
   );
 
-  // Com filtro ativo a lista exibida difere da real; desliga o drag para os
-  // índices não saírem de sincronia.
-  readonly dragDisabled = computed(() => this.hiddenJiraStatuses().size > 0);
+  /**
+   * enterPredicate da lista raiz. A raiz engloba geometricamente todas as
+   * .children-list aninhadas, então sem isto ela "rouba" qualquer drag de filho
+   * (impedindo a reordenação entre irmãos). Regra: aceita itens de topo sempre;
+   * aceita um filho só quando o ponteiro não está mais sobre uma .children-list
+   * (ou seja, o usuário realmente quer promovê-lo para o topo).
+   */
+  readonly acceptAtRoot = (drag: CdkDrag, _drop: CdkDropList): boolean => {
+    const activity = drag.data as WorkActivity | undefined;
+    if (!activity?.parent_id) return true;
+    const el = this.document.elementFromPoint(this.pointerX, this.pointerY);
+    return !el?.closest('.children-list');
+  };
 
   readonly childrenByParent = computed(() => {
     const map = new Map<string, WorkActivity[]>();
@@ -123,6 +148,15 @@ export class ActivitiesPage implements ActivityTreeHost {
       this.activityService.changed();
       this.reload();
     });
+
+    const trackPointer = (e: PointerEvent): void => {
+      this.pointerX = e.clientX;
+      this.pointerY = e.clientY;
+    };
+    this.document.addEventListener('pointermove', trackPointer, { passive: true });
+    inject(DestroyRef).onDestroy(() =>
+      this.document.removeEventListener('pointermove', trackPointer),
+    );
   }
 
   reload(): void {
@@ -131,6 +165,7 @@ export class ActivitiesPage implements ActivityTreeHost {
       this.activities.set(activities);
       this.loading.set(false);
     });
+    this.activityService.getDismissedJira().subscribe((map) => this.dismissedJira.set(map ?? {}));
   }
 
   /** Busca o estado atual no Jira das atividades importadas e atualiza status/tipo. */
@@ -217,6 +252,8 @@ export class ActivitiesPage implements ActivityTreeHost {
     const all = this.activities();
     const roots = all.filter((a) => a.jira_key && !a.parent_id);
     const knownKeys = new Set(all.filter((a) => a.jira_key).map((a) => a.jira_key as string));
+    // Itens que o usuário removeu de propósito não voltam na sincronização.
+    const dismissed = this.dismissedJira();
 
     if (roots.length === 0) {
       this.finishJiraSync(moves, 0);
@@ -238,7 +275,10 @@ export class ActivitiesPage implements ActivityTreeHost {
         next: (res) => {
           remainingRoots--;
           const newChildren = res.issues.filter(
-            (child) => child.key !== root.jira_key && !knownKeys.has(child.key),
+            (child) =>
+              child.key !== root.jira_key &&
+              !knownKeys.has(child.key) &&
+              !(child.key in dismissed),
           );
           for (const child of newChildren) {
             knownKeys.add(child.key); // evita duplicar se dois pais listarem o mesmo item
@@ -459,22 +499,27 @@ export class ActivitiesPage implements ActivityTreeHost {
     const fromParent = event.previousContainer.data as string | null;
     const toParent = event.container.data as string | null;
 
-    const fromList =
+    // `event.*Index` são posições na lista RENDERIZADA. A raiz mostra tudo; as
+    // listas de filhos aplicam "Ocultar status". Trabalhamos sobre a lista
+    // visível e depois recompomos a lista completa preservando os ocultos.
+    const fromFull =
       fromParent === null ? [...this.topLevelActivities()] : [...this.childrenOf(fromParent)];
+    const fromVisible = this.visibleSlice(fromParent, fromFull);
     const overrides = new Map<string | null, WorkActivity[]>();
 
     if (event.previousContainer === event.container) {
       if (event.previousIndex === event.currentIndex) return;
-      moveItemInArray(fromList, event.previousIndex, event.currentIndex);
-      overrides.set(fromParent, fromList);
+      moveItemInArray(fromVisible, event.previousIndex, event.currentIndex);
+      overrides.set(fromParent, this.mergeVisibleOrder(fromParent, fromFull, fromVisible));
     } else {
-      const toList =
+      const toFull =
         toParent === null ? [...this.topLevelActivities()] : [...this.childrenOf(toParent)];
-      transferArrayItem(fromList, toList, event.previousIndex, event.currentIndex);
-      const movedIndex = toList.findIndex((item) => item.id === moved.id);
-      toList[movedIndex] = { ...toList[movedIndex], parent_id: toParent };
-      overrides.set(fromParent, fromList);
-      overrides.set(toParent, toList);
+      const toVisible = this.visibleSlice(toParent, toFull);
+      transferArrayItem(fromVisible, toVisible, event.previousIndex, event.currentIndex);
+      const movedIndex = toVisible.findIndex((item) => item.id === moved.id);
+      toVisible[movedIndex] = { ...toVisible[movedIndex], parent_id: toParent };
+      overrides.set(fromParent, this.mergeVisibleOrder(fromParent, fromFull, fromVisible));
+      overrides.set(toParent, this.mergeVisibleOrder(toParent, toFull, toVisible));
       if (toParent) {
         this.expandedParents.update((current) => new Set(current).add(toParent));
       }
@@ -484,6 +529,29 @@ export class ActivitiesPage implements ActivityTreeHost {
     const updated = this.flattenWithOverrides(overrides);
     this.activities.set(updated);
     this.activityService.reorder(updated.map((item) => item.id)).subscribe();
+  }
+
+  /** Itens de `full` como aparecem na tela: raiz não filtra, filhos aplicam "Ocultar status". */
+  private visibleSlice(parentId: string | null, full: WorkActivity[]): WorkActivity[] {
+    return parentId === null ? [...full] : full.filter((a) => !this.isJiraHidden(a));
+  }
+
+  /**
+   * Recompõe a lista completa a partir de um reordenamento feito só sobre os
+   * itens visíveis: cada vaga visível recebe o próximo item de `visible`, na
+   * ordem; os ocultos ficam onde estavam. Sobras de `visible` (item que entrou
+   * por transferência) vão para o fim.
+   */
+  private mergeVisibleOrder(
+    parentId: string | null,
+    full: WorkActivity[],
+    visible: WorkActivity[],
+  ): WorkActivity[] {
+    const isHidden = (a: WorkActivity): boolean => parentId !== null && this.isJiraHidden(a);
+    let vi = 0;
+    const out = full.map((item) => (isHidden(item) ? item : visible[vi++]));
+    while (vi < visible.length) out.push(visible[vi++]);
+    return out;
   }
 
   private flattenWithOverrides(overrides: Map<string | null, WorkActivity[]>): WorkActivity[] {
@@ -533,9 +601,9 @@ export class ActivitiesPage implements ActivityTreeHost {
       });
   }
 
-  /** Nº de descendentes (filhos, netos…) de uma atividade. */
-  private descendantCount(id: string): number {
-    const ids = new Set([id]);
+  /** A atividade + todos os descendentes (filhos, netos…). */
+  private subtreeOf(id: string): WorkActivity[] {
+    const ids = new Set<string>([id]);
     for (let grew = true; grew; ) {
       grew = false;
       for (const a of this.activities()) {
@@ -545,7 +613,57 @@ export class ActivitiesPage implements ActivityTreeHost {
         }
       }
     }
-    return ids.size - 1;
+    return this.activities().filter((a) => ids.has(a.id));
+  }
+
+  /** Nº de descendentes (filhos, netos…) de uma atividade. */
+  private descendantCount(id: string): number {
+    return this.subtreeOf(id).length - 1;
+  }
+
+  /** jira_keys dos ancestrais de `activity` (pai, avô, … até a raiz). */
+  private jiraAncestorKeys(activity: WorkActivity): string[] {
+    const byId = new Map(this.activities().map((a) => [a.id, a]));
+    const chain: string[] = [];
+    let current = activity.parent_id ? byId.get(activity.parent_id) : undefined;
+    while (current) {
+      if (current.jira_key) chain.push(current.jira_key);
+      current = current.parent_id ? byId.get(current.parent_id) : undefined;
+    }
+    return chain;
+  }
+
+  /**
+   * Ao remover uma atividade do Jira, marca a subárvore removida para a
+   * sincronização não recriá-la. Ao remover um ancestral, as marcações dos
+   * descendentes são descartadas (a cadeia deles contém a chave removida), então
+   * eles voltam no próximo "Sinc. Jira".
+   */
+  private updateDismissedOnRemove(activity: WorkActivity): void {
+    const subtree = this.subtreeOf(activity.id);
+    const subtreeKeys = new Set(subtree.filter((n) => n.jira_key).map((n) => n.jira_key as string));
+    if (subtreeKeys.size === 0) return;
+
+    // Sempre: descarta marcações que estavam dentro do ramo removido — assim,
+    // ao remover um ancestral, os descendentes voltam na próxima sincronização.
+    const next: Record<string, string[]> = {};
+    for (const [key, chain] of Object.entries(this.dismissedJira())) {
+      if (subtreeKeys.has(key) || chain.some((c) => subtreeKeys.has(c))) continue;
+      next[key] = chain;
+    }
+
+    // Só marca como removido quando ainda existe um ancestral no Jira que a
+    // sincronização visita. Remover uma raiz já é permanente (a sincronização
+    // nunca recria raízes), então não precisa marcar nada da subárvore dela.
+    if (activity.parent_id) {
+      for (const node of subtree) {
+        if (!node.jira_key) continue;
+        next[node.jira_key] = this.jiraAncestorKeys(node);
+      }
+    }
+
+    this.dismissedJira.set(next);
+    this.activityService.setDismissedJira(next).subscribe();
   }
 
   remove(activity: WorkActivity): void {
@@ -558,9 +676,9 @@ export class ActivitiesPage implements ActivityTreeHost {
       data: { title: 'Excluir atividade', message },
     });
     ref.afterClosed().subscribe((confirmed) => {
-      if (confirmed) {
-        this.activityService.delete(activity.id).subscribe(() => this.reload());
-      }
+      if (!confirmed) return;
+      this.updateDismissedOnRemove(activity);
+      this.activityService.delete(activity.id).subscribe(() => this.reload());
     });
   }
 }

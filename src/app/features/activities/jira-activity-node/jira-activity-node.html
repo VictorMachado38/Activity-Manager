@@ -129,7 +129,6 @@
       [id]="page.childrenListId(activity.id)"
       [cdkDropListConnectedTo]="page.allDropListIds()"
       [cdkDropListData]="page.parentGroupId(activity.id)"
-      [cdkDropListDisabled]="page.dragDisabled()"
       [cdkDropListEnterPredicate]="acceptDrag"
       (cdkDropListDropped)="page.drop($event)"
     >

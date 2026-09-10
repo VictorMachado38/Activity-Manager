@@ -36,4 +36,13 @@ export class ActivityService {
   reorder(ids: string[]): Observable<WorkActivity[]> {
     return this.http.put<WorkActivity[]>(`${this.base}/reorder`, { ids });
   }
+
+  /** Mapa jira_key -> cadeia de ancestrais; itens aqui não são recriados pela sincronização. */
+  getDismissedJira(): Observable<Record<string, string[]>> {
+    return this.http.get<Record<string, string[]>>('/api/dismissed-jira');
+  }
+
+  setDismissedJira(map: Record<string, string[]>): Observable<Record<string, string[]>> {
+    return this.http.put<Record<string, string[]>>('/api/dismissed-jira', { map });
+  }
 }

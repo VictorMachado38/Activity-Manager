@@ -87,7 +87,7 @@
           id="root-drop-list"
           [cdkDropListConnectedTo]="allDropListIds()"
           [cdkDropListData]="rootGroupId"
-          [cdkDropListDisabled]="dragDisabled()"
+          [cdkDropListEnterPredicate]="acceptAtRoot"
           (cdkDropListDropped)="drop($event)"
         >
           @for (activity of topLevelActivities(); track activity.id) {

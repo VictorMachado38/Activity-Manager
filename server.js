@@ -39,7 +39,11 @@ const DATA_FILE = path.join(__dirname, 'data.json');
 const JIRA_CONFIG_FILE = path.join(__dirname, 'jira-config.json');
 const STATIC_DIR = path.join(__dirname, 'dist', 'activity-manager', 'browser');
 
-const EMPTY_STATE = { activities: [], shortcuts: [], credentials: [], messages: [] };
+// `dismissedJira`: mapa jira_key -> cadeia de jira_keys ancestrais (pai..raiz)
+// no momento em que a atividade foi removida. Enquanto a chave estiver aqui, a
+// sincronização não recria esse item. Remover um ancestral limpa os
+// descendentes (a cadeia contém a chave do ancestral).
+const EMPTY_STATE = { activities: [], shortcuts: [], credentials: [], messages: [], dismissedJira: {} };
 
 function loadData() {
   if (!fs.existsSync(DATA_FILE)) {
@@ -385,6 +389,25 @@ async function handleApi(req, res, url) {
 
   if (parts[0] === 'jira' && parts[1] === 'issue' && parts[3] === 'children' && req.method === 'GET') {
     return handleJiraChildren(req, res, decodeURIComponent(parts[2]));
+  }
+
+  if (parts[0] === 'dismissed-jira' && !parts[1]) {
+    if (req.method === 'GET') {
+      return sendJson(res, 200, data.dismissedJira || {});
+    }
+    if (req.method === 'PUT') {
+      let body;
+      try {
+        body = await readBody(req);
+      } catch (err) {
+        return sendJson(res, 400, { detail: err.message });
+      }
+      const map = body && typeof body.map === 'object' && body.map ? body.map : {};
+      data.dismissedJira = map;
+      saveData(data);
+      return sendJson(res, 200, data.dismissedJira);
+    }
+    return sendJson(res, 405, { detail: 'método não suportado' });
   }
 
   const [collectionName, id] = parts;

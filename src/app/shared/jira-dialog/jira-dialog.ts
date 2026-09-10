@@ -171,6 +171,7 @@ export class JiraDialog {
   private finishImport(key: string, childCount: number, hadErrors: boolean): void {
     this.importingKey.set(null);
     this.importedKeys.update((current) => new Set(current).add(key));
+    this.clearDismissedUnder(key);
     this.activityService.notifyChanged();
     const suffix = childCount > 0 ? ` (+${childCount} filho${childCount > 1 ? 's' : ''})` : '';
     this.snackBar.open(
@@ -185,6 +186,23 @@ export class JiraDialog {
   private failImport(message: string): void {
     this.importingKey.set(null);
     this.snackBar.open(message, undefined, { duration: 3000 });
+  }
+
+  /**
+   * Ao reimportar um item, limpa as marcações de "removido" dele e de tudo que
+   * estava abaixo dele — senão a próxima sincronização removeria de novo.
+   */
+  private clearDismissedUnder(rootKey: string): void {
+    this.activityService.getDismissedJira().subscribe((map) => {
+      const next: Record<string, string[]> = {};
+      for (const [key, chain] of Object.entries(map ?? {})) {
+        if (key === rootKey || chain.includes(rootKey)) continue;
+        next[key] = chain;
+      }
+      if (Object.keys(next).length !== Object.keys(map ?? {}).length) {
+        this.activityService.setDismissedJira(next).subscribe();
+      }
+    });
   }
 
   close(): void {

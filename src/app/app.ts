@@ -1,6 +1,7 @@
 import { Component, inject } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
+import { SwUpdate } from '@angular/service-worker';
 
 import { ActivitiesPage } from './features/activities/activities-page/activities-page';
 import { CredentialsSection } from './features/credentials/credentials-section/credentials-section';
@@ -20,7 +21,22 @@ import { ThemeService } from './core/services/theme.service';
 export class App {
   private readonly dialog = inject(MatDialog);
   private readonly themeService = inject(ThemeService);
+  private readonly swUpdate = inject(SwUpdate);
   readonly layout = inject(LayoutSettingsService);
+
+  constructor() {
+    // Sem isto o service worker segura o bundle antigo até TODAS as abas do app
+    // serem fechadas — o que faz "buildei mas não mudou nada" acontecer toda
+    // hora. Aqui, assim que uma versão nova termina de baixar, ativa e recarrega.
+    if (this.swUpdate.isEnabled) {
+      this.swUpdate.versionUpdates.subscribe((evt) => {
+        if (evt.type === 'VERSION_READY') {
+          void this.swUpdate.activateUpdate().then(() => document.location.reload());
+        }
+      });
+      void this.swUpdate.checkForUpdate();
+    }
+  }
 
   openSettings(): void {
     this.dialog.open(LayoutSettingsDialog);

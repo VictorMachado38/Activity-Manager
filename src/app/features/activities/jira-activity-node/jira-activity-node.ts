@@ -27,7 +27,6 @@ export interface JiraActivityTreeHost {
   drop(event: CdkDragDrop<string | null>): void;
   visibleChildrenOf(parentId: string): WorkActivity[];
   isJiraHidden(activity: WorkActivity): boolean;
-  dragDisabled(): boolean;
 }
 
 @Component({
