@@ -17,6 +17,8 @@ export interface WorkActivity {
   jira_key: string | null;
   jira_status: string | null;
   jira_issue_type: string | null;
+  /** Valor do campo "Avaliação Dev" no Jira; null quando ainda não avaliado. */
+  jira_avaliacao: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -30,6 +32,7 @@ export interface WorkActivityCreate {
   jira_key?: string | null;
   jira_status?: string | null;
   jira_issue_type?: string | null;
+  jira_avaliacao?: string | null;
 }
 
 export interface WorkActivityUpdate {
@@ -41,4 +44,5 @@ export interface WorkActivityUpdate {
   jira_key?: string | null;
   jira_status?: string | null;
   jira_issue_type?: string | null;
+  jira_avaliacao?: string | null;
 }

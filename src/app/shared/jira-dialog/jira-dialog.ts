@@ -10,6 +10,7 @@ import { ActivityService } from '../../core/services/activity.service';
 import { JiraService } from '../../core/services/jira.service';
 import { jiraStatusClass } from '../../core/utils/jira-status';
 import { JiraChildrenDialog } from '../jira-children-dialog/jira-children-dialog';
+import { PlatformRulesDialog } from '../platform-rules-dialog/platform-rules-dialog';
 
 @Component({
   selector: 'app-jira-dialog',
@@ -91,6 +92,10 @@ export class JiraDialog {
     });
   }
 
+  openRules(): void {
+    this.dialog.open(PlatformRulesDialog, { width: '680px', maxWidth: '95vw' });
+  }
+
   statusClass(issue: JiraIssue): string {
     return jiraStatusClass(issue);
   }
@@ -117,6 +122,7 @@ export class JiraDialog {
             jira_key: issue.key,
             jira_status: issue.status,
             jira_issue_type: issue.issueType,
+            jira_avaliacao: issue.avaliacaoDev,
           })
           .subscribe({
             next: (parent) => this.createChildren(issue.key, parent.id, childrenRes.issues),
@@ -145,6 +151,7 @@ export class JiraDialog {
           jira_key: child.key,
           jira_status: child.status,
           jira_issue_type: child.issueType,
+          jira_avaliacao: child.avaliacaoDev,
           parent_id: parentId,
         })
         .subscribe({

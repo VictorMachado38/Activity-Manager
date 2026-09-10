@@ -57,6 +57,18 @@
         </button>
       }
 
+      @if (depth === 1 && page.hasChildren(activity)) {
+        <button
+          type="button"
+          class="expand-all-btn"
+          (click)="page.expandAllDescendants(activity)"
+          aria-label="Abrir todos os filhos exibidos"
+          title="Abrir todos os filhos exibidos"
+        >
+          <mat-icon>unfold_more</mat-icon>
+        </button>
+      }
+
       <a [href]="activity.jira_url" target="_blank" rel="noopener" class="activity-key">
         <span>{{ page.displayLabel(activity) }}</span>
         <mat-icon inline>open_in_new</mat-icon>

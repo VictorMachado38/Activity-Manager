@@ -1,4 +1,15 @@
-<h2 mat-dialog-title>Minhas atividades no Jira</h2>
+<h2 mat-dialog-title class="dialog-title">
+  <span>Minhas atividades no Jira</span>
+  <button
+    type="button"
+    class="rules-btn"
+    (click)="openRules()"
+    aria-label="Ver regras da plataforma"
+    title="Regras da plataforma"
+  >
+    <mat-icon inline>info</mat-icon>
+  </button>
+</h2>
 <mat-dialog-content>
   <div class="filters">
     <div class="type-filter">

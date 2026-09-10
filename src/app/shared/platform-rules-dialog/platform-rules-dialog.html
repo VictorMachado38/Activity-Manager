@@ -1,0 +1,117 @@
+<h2 mat-dialog-title>
+  <mat-icon inline>info</mat-icon>
+  Regras da plataforma
+</h2>
+
+<mat-dialog-content>
+  <p class="intro">
+    Referência rápida do que a plataforma faz sozinha. Esta tela é apenas
+    informativa — nada aqui pode ser alterado.
+  </p>
+
+  <section class="rule-block">
+    <h3>Status pessoais</h3>
+    <p>Toda atividade percorre estes 7 passos, nesta ordem:</p>
+    <ol class="steps">
+      <li>A fazer</li>
+      <li>Na máquina</li>
+      <li>Fin. na máquina</li>
+      <li>No repositório</li>
+      <li>Para deploy</li>
+      <li>Testando</li>
+      <li>No ar</li>
+    </ol>
+  </section>
+
+  <section class="rule-block">
+    <h3>Status pessoal derivado do Jira (só tipo “Bug”)</h3>
+    <p>
+      Quando a atividade veio do Jira e é do tipo <strong>Bug</strong>, o status
+      pessoal exibido é calculado a partir do status no Jira:
+    </p>
+    <table class="rule-table">
+      <thead>
+        <tr>
+          <th>Status no Jira</th>
+          <th>Vira, no pessoal</th>
+          <th>Detalhe</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Em revisão</td>
+          <td>Para deploy</td>
+          <td>Sempre reflete o Jira, mesmo que você já tenha escolhido outro no combo.</td>
+        </tr>
+        <tr>
+          <td>Em homologação</td>
+          <td>Testando</td>
+          <td>Sempre reflete o Jira, mesmo que você já tenha escolhido outro no combo.</td>
+        </tr>
+        <tr>
+          <td>Concluído</td>
+          <td>No ar</td>
+          <td>
+            Só enquanto o status pessoal ainda estiver em “A fazer”. Assim que
+            você escolher algo no combo, vale a sua escolha.
+          </td>
+        </tr>
+      </tbody>
+    </table>
+    <p class="note">
+      Para os demais status do Jira, o status pessoal é o que você definir no
+      combo (começa em “A fazer”).
+    </p>
+  </section>
+
+  <section class="rule-block">
+    <h3>Bolinha vermelha piscando (Avaliação Dev)</h3>
+    <p>
+      Um <span class="dot-demo" aria-hidden="true"></span> ponto vermelho pulsando
+      ao lado da chave indica um <strong>Bug sem o campo “Avaliação Dev”
+      preenchido no Jira</strong>.
+    </p>
+    <p class="note">
+      Ele some quando o campo é preenchido no Jira (Procedente, Não Procedente,
+      Em Análise ou Próxima Release) e você roda o “Sinc. Jira”.
+    </p>
+  </section>
+
+  <section class="rule-block">
+    <h3>Sincronização (“Sinc. Jira”)</h3>
+    <ul>
+      <li>Atualiza status, tipo e “Avaliação Dev” das atividades que vieram do Jira.</li>
+      <li>
+        Cria automaticamente os filhos novos que passaram a existir no Jira sob
+        um item que você já importou.
+      </li>
+    </ul>
+  </section>
+
+  <section class="rule-block">
+    <h3>Árvore de atividades</h3>
+    <ul>
+      <li>
+        <strong>Ocultar status:</strong> esconde os filhos com os status
+        marcados. Os itens de topo continuam sempre visíveis. Com um filtro
+        ativo, o arrastar-e-soltar fica desativado.
+      </li>
+      <li>
+        <strong>Abrir todos os filhos exibidos:</strong> no item de topo, expande
+        a subárvore inteira de uma vez, respeitando o filtro de status.
+      </li>
+    </ul>
+  </section>
+
+  <section class="rule-block">
+    <h3>Fluxo do Jira para “Bug”</h3>
+    <p class="flow">
+      Backlog → Em análise → Análise finalizada → Em andamento → Em revisão →
+      Aguardando Homologação → Em homologação → Homologado → Concluído
+    </p>
+  </section>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-flat-button color="primary" (click)="close()">Entendi</button>
+</mat-dialog-actions>

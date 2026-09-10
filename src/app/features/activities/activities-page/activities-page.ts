@@ -29,7 +29,7 @@ const MAX_DEPTH = 3;
 const STATUS_STEPS: StatusStep[] = [
   { status: 'a_fazer', label: 'A fazer', icon: 'assignment' },
   { status: 'na_maquina', label: 'Na máquina', icon: 'computer' },
-  { status: 'finalizado_na_maquina', label: 'Finalizado na máquina', icon: 'check_circle' },
+  { status: 'finalizado_na_maquina', label: 'Fin. na máquina', icon: 'check_circle' },
   { status: 'no_repositorio', label: 'No repositório', icon: 'account_tree' },
   { status: 'para_deploy', label: 'Para deploy', icon: 'rocket_launch' },
   { status: 'testando', label: 'Testando', icon: 'science' },
@@ -177,6 +177,9 @@ export class ActivitiesPage implements ActivityTreeHost {
       if ((fresh.issueType ?? null) !== activity.jira_issue_type) {
         body.jira_issue_type = fresh.issueType ?? null;
       }
+      if ((fresh.avaliacaoDev ?? null) !== (activity.jira_avaliacao ?? null)) {
+        body.jira_avaliacao = fresh.avaliacaoDev ?? null;
+      }
       if (Object.keys(body).length > 0) patches.push({ id: activity.id, body });
     }
 
@@ -248,6 +251,7 @@ export class ActivitiesPage implements ActivityTreeHost {
                 jira_key: child.key,
                 jira_status: child.status,
                 jira_issue_type: child.issueType,
+                jira_avaliacao: child.avaliacaoDev,
                 parent_id: root.id,
               })
               .subscribe({
@@ -386,7 +390,8 @@ export class ActivitiesPage implements ActivityTreeHost {
   }
 
   openChildrenLinks(activity: WorkActivity): void {
-    const children = this.childrenOf(activity.id);
+    // Só os filhos visíveis: respeita o filtro "Ocultar status".
+    const children = this.visibleChildrenOf(activity.id);
     let blocked = 0;
     for (const child of children) {
       const win = window.open(child.jira_url, '_blank', 'noopener');
@@ -413,6 +418,29 @@ export class ActivitiesPage implements ActivityTreeHost {
       } else {
         next.add(parentId);
       }
+      return next;
+    });
+  }
+
+  /**
+   * Abre de uma vez toda a subárvore de `activity`: expande o próprio item e
+   * cada descendente que ainda tenha filhos visíveis (respeita o filtro
+   * "Ocultar status"). É o botão "abrir todos os filhos" do pai principal.
+   */
+  expandAllDescendants(activity: WorkActivity): void {
+    const toExpand: string[] = [];
+    const walk = (parentId: string): void => {
+      const visibleKids = this.visibleChildrenOf(parentId);
+      if (visibleKids.length === 0) return;
+      toExpand.push(parentId);
+      for (const child of visibleKids) walk(child.id);
+    };
+    walk(activity.id);
+    if (toExpand.length === 0) return;
+
+    this.expandedParents.update((current) => {
+      const next = new Set(current);
+      for (const id of toExpand) next.add(id);
       return next;
     });
   }

@@ -88,6 +88,7 @@ const COLLECTIONS = {
       jira_key: null,
       jira_status: null,
       jira_issue_type: null,
+      jira_avaliacao: null,
     }),
     onCreate: (record) => ({ ...record, created_at: new Date().toISOString(), updated_at: new Date().toISOString() }),
     onUpdate: (record) => ({ ...record, updated_at: new Date().toISOString() }),
@@ -122,6 +123,15 @@ function loadJiraConfig() {
 // exata — o valor entra na JQL, então nada fora daqui é aceito.
 const JIRA_MY_ITEMS_TYPES = ['Item de Trabalho', 'Bug'];
 const JIRA_MY_ITEMS_DEFAULT_TYPE = 'Item de Trabalho';
+
+// Campo customizado "Avaliação Dev" no Jira da empresa (select único:
+// Procedente / Não Procedente / Em Análise / Próxima Release). Só faz sentido
+// para Bug; quando não preenchido, a issue vem sem o campo (undefined).
+const JIRA_AVALIACAO_DEV_FIELD = 'customfield_10173';
+
+function readAvaliacaoDev(fields) {
+  return fields?.[JIRA_AVALIACAO_DEV_FIELD]?.value ?? null;
+}
 
 function buildMyItemsJql(type) {
   return `type = "${type}" AND assignee = currentUser() ORDER BY created DESC`;
@@ -194,7 +204,7 @@ async function runJiraSearch(config, jql) {
     body: JSON.stringify({
       jql,
       maxResults: 100,
-      fields: ['summary', 'status', 'issuetype', 'created', 'assignee'],
+      fields: ['summary', 'status', 'issuetype', 'created', 'assignee', JIRA_AVALIACAO_DEV_FIELD],
     }),
   });
 
@@ -217,6 +227,7 @@ async function runJiraSearch(config, jql) {
     status: issue.fields?.status?.name ?? null,
     issueType: issue.fields?.issuetype?.name ?? null,
     created: issue.fields?.created ?? null,
+    avaliacaoDev: readAvaliacaoDev(issue.fields),
   }));
 }
 
@@ -250,6 +261,9 @@ function mapLinkedIssue(config, raw) {
     status: raw.fields?.status?.name ?? null,
     issueType: raw.fields?.issuetype?.name ?? null,
     created: raw.fields?.created ?? null,
+    // subtasks/issuelinks trazem um conjunto fixo de campos (sem customfields);
+    // aqui quase sempre é null e o valor real chega depois pela sincronização.
+    avaliacaoDev: readAvaliacaoDev(raw.fields),
   };
 }
 
@@ -267,7 +281,7 @@ async function handleJiraChildren(req, res, key) {
     await assertJiraAuth(config);
     const auth = Buffer.from(`${config.email}:${config.apiToken}`).toString('base64');
     const issueRes = await jiraFetch(
-      `${config.baseUrl}/rest/api/3/issue/${encodeURIComponent(key)}?fields=summary,status,issuetype,subtasks,issuelinks`,
+      `${config.baseUrl}/rest/api/3/issue/${encodeURIComponent(key)}?fields=summary,status,issuetype,subtasks,issuelinks,${JIRA_AVALIACAO_DEV_FIELD}`,
       { headers: { Authorization: `Basic ${auth}`, Accept: 'application/json' } },
     );
     const issuePayload = await issueRes.json();
@@ -295,6 +309,21 @@ async function handleJiraChildren(req, res, key) {
     const parentIssues = await runJiraSearch(config, `parent = "${key}" ORDER BY updated DESC`);
     for (const issue of parentIssues) {
       if (!byKey.has(issue.key)) byKey.set(issue.key, issue);
+    }
+
+    // subtasks/issuelinks só trazem um conjunto fixo de campos — sem
+    // customfields como a "Avaliação Dev". Rebusca os mesmos itens por chave
+    // (agora com todos os campos que mapeamos) e sobrescreve os dados pobres.
+    const linkedKeys = Array.from(byKey.keys()).filter(
+      (k) => k !== key && JIRA_ISSUE_KEY_PATTERN.test(k),
+    );
+    if (linkedKeys.length > 0) {
+      const enriched = await Promise.all(
+        chunk(linkedKeys, 50).map((group) =>
+          runJiraSearch(config, `key in (${group.join(', ')}) ORDER BY key`),
+        ),
+      );
+      for (const issue of enriched.flat()) byKey.set(issue.key, issue);
     }
 
     return sendJson(res, 200, { issues: Array.from(byKey.values()) });

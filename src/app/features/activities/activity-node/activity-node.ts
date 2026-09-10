@@ -19,6 +19,7 @@ export interface ActivityTreeHost {
   canHaveChildren(activity: WorkActivity): boolean;
   isParentExpanded(parentId: string): boolean;
   toggleParent(parentId: string): void;
+  expandAllDescendants(activity: WorkActivity): void;
   changeStatus(activity: WorkActivity, status: WorkStatus): void;
   remove(activity: WorkActivity): void;
   childrenListId(parentId: string): string;

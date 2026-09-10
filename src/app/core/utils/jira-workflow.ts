@@ -1,3 +1,4 @@
+import { WorkStatus } from '../models/activity.model';
 import { JiraIssue } from '../models/jira-issue.model';
 
 export interface JiraWorkflowStep {
@@ -33,6 +34,14 @@ const WORKFLOWS_BY_ISSUE_TYPE: Record<string, JiraWorkflowStep[]> = {
   Bug: BUG_WORKFLOW,
 };
 
+// Status do Jira (fluxo "Bug", já normalizado) -> status pessoal derivado.
+// Diferente da regra de "Concluído -> No ar" (que só vale enquanto o status
+// pessoal é o inicial), estes refletem sempre o Jira.
+const BUG_STATUS_TO_WORK_STATUS: Record<string, WorkStatus> = {
+  'em revisao': 'para_deploy',
+  'em homologacao': 'testando',
+};
+
 function normalize(value: string): string {
   return value
     .normalize('NFD')
@@ -59,4 +68,16 @@ export function jiraWorkflowProgress(
   if (currentIndex === -1) return null;
 
   return { steps, currentIndex };
+}
+
+/**
+ * Status pessoal derivado automaticamente do status do Jira, para os casos
+ * mapeados do fluxo "Bug" (ex.: "Em revisão" -> "Para deploy", "Em homologação"
+ * -> "Testando"). Retorna `null` quando não há regra para o status/tipo.
+ */
+export function jiraDerivedWorkStatus(
+  issue: Pick<JiraIssue, 'issueType' | 'status'>,
+): WorkStatus | null {
+  if (issue.issueType !== 'Bug' || !issue.status) return null;
+  return BUG_STATUS_TO_WORK_STATUS[normalize(issue.status)] ?? null;
 }

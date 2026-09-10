@@ -4,7 +4,11 @@ import { MatIconModule } from '@angular/material/icon';
 
 import { WorkActivity, WorkStatus } from '../../../core/models/activity.model';
 import { jiraStatusClass } from '../../../core/utils/jira-status';
-import { JiraWorkflowProgress, jiraWorkflowProgress } from '../../../core/utils/jira-workflow';
+import {
+  JiraWorkflowProgress,
+  jiraDerivedWorkStatus,
+  jiraWorkflowProgress,
+} from '../../../core/utils/jira-workflow';
 import { StatusStep } from '../activity-node/activity-node';
 
 export interface JiraActivityTreeHost {
@@ -14,6 +18,7 @@ export interface JiraActivityTreeHost {
   canHaveChildren(activity: WorkActivity): boolean;
   isParentExpanded(parentId: string): boolean;
   toggleParent(parentId: string): void;
+  openChildrenLinks(activity: WorkActivity): void;
   changeStatus(activity: WorkActivity, status: WorkStatus): void;
   remove(activity: WorkActivity): void;
   childrenListId(parentId: string): string;
@@ -66,11 +71,19 @@ export class JiraActivityNode {
   }
 
   /**
-   * Status pessoal exibido na barra/combo. Se o Bug já está "Concluído" no Jira
-   * e o status pessoal ainda é o inicial ("a_fazer"), mostra como "No ar" (100%).
-   * Assim que o usuário escolhe algo no combo, passa a valer a escolha real.
+   * Status pessoal exibido na barra/combo. Regras, na ordem:
+   * 1. Status do Jira mapeado para um status pessoal (ex.: "Em revisão" ->
+   *    "Para deploy", "Em homologação" -> "Testando") — sempre reflete o Jira.
+   * 2. Bug "Concluído" no Jira com status pessoal ainda no inicial ("a_fazer")
+   *    -> "No ar" (100%). Assim que o usuário escolhe algo no combo, vale a escolha.
+   * 3. Caso contrário, o status pessoal salvo.
    */
   effectiveStatus(): WorkStatus {
+    const derived = jiraDerivedWorkStatus({
+      issueType: this.activity.jira_issue_type,
+      status: this.activity.jira_status,
+    });
+    if (derived) return derived;
     if (this.jiraDone() && this.activity.status === 'a_fazer') return 'no_ar';
     return this.activity.status;
   }
@@ -89,6 +102,15 @@ export class JiraActivityNode {
     const index = steps.findIndex((step) => step.status === this.effectiveStatus());
     if (index === -1) return 0;
     return Math.round(((index + 1) / steps.length) * 100);
+  }
+
+  /**
+   * Bug ainda sem "Avaliação Dev" preenchida no Jira — a UI mostra uma bolinha
+   * vermelha piscando para sinalizar que falta avaliar (procedente / não
+   * procedente). Só vale para o tipo "Bug", que é onde o campo existe.
+   */
+  needsAvaliacao(): boolean {
+    return this.activity.jira_issue_type === 'Bug' && !this.activity.jira_avaliacao;
   }
 
   onStatusSelect(event: Event): void {

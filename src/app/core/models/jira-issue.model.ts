@@ -5,6 +5,8 @@ export interface JiraIssue {
   status: string | null;
   issueType: string | null;
   created: string | null;
+  /** Campo customizado "Avaliação Dev" (Procedente / Não Procedente / …) ou null. */
+  avaliacaoDev: string | null;
 }
 
 export interface JiraMyItemsResponse {
