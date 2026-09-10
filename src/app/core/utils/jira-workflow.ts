@@ -36,10 +36,14 @@ const WORKFLOWS_BY_ISSUE_TYPE: Record<string, JiraWorkflowStep[]> = {
 
 // Status do Jira (fluxo "Bug", já normalizado) -> status pessoal derivado.
 // Diferente da regra de "Concluído -> No ar" (que só vale enquanto o status
-// pessoal é o inicial), estes refletem sempre o Jira.
+// pessoal é o inicial), estes refletem sempre o Jira. Cobrem todo o trecho
+// pós-desenvolvimento para o status pessoal não "voltar para A fazer" quando o
+// bug avança para um passo que antes não estava mapeado (ex.: "Homologado").
 const BUG_STATUS_TO_WORK_STATUS: Record<string, WorkStatus> = {
   'em revisao': 'para_deploy',
+  'aguardando homologacao': 'para_deploy',
   'em homologacao': 'testando',
+  homologado: 'no_ar',
 };
 
 function normalize(value: string): string {
